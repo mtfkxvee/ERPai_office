@@ -4,8 +4,9 @@ import * as THREE from "three";
 import {
   BUGZONE,
   CEILING_LIGHTS,
-  chairPos,
+  CHAIR,
   DESK,
+  DESK_LOCAL,
   DESKS,
   SHELF,
   WHITEBOARD,
@@ -174,7 +175,12 @@ function DeskLamp() {
   );
 }
 
-function Chair({ x, z }: { x: number; z: number }) {
+/** Kursi kerja. DIRENDER DI KOORDINAT DUNIA dari Office.tsx, bukan di dalam
+ * grup meja — supaya posisinya pakai `chairPos()` yang sama dengan tujuan jalan
+ * karakter. Dulu kursi ini anak grup meja tapi dikasih koordinat absolut, jadi
+ * kegeser dua kali. Dengan dikeluarkan, salah-geser kayak gitu nggak mungkin
+ * lagi: satu fungsi, satu posisi. */
+export function Chair({ x, z }: { x: number; z: number }) {
   const legs = useMemo(() => [0, 1, 2, 3, 4].map((i) => (i / 5) * Math.PI * 2), []);
   return (
     <group position={[x, 0, z]}>
@@ -194,12 +200,12 @@ function Chair({ x, z }: { x: number; z: number }) {
         <boxGeometry args={[0.09, 0.38, 0.09]} />
         <meshStandardMaterial color={C.chairFrame} roughness={0.5} metalness={0.4} />
       </mesh>
-      <mesh position={[0, 0.49, 0]} castShadow>
-        <boxGeometry args={[0.58, 0.11, 0.56]} />
+      <mesh position={[0, CHAIR.seatY, 0]} castShadow>
+        <boxGeometry args={[0.58, CHAIR.seatT, 0.56]} />
         <meshStandardMaterial color={C.chairFabric} roughness={0.9} />
       </mesh>
       {/* sandaran di sisi +z (belakang orang yang duduk) */}
-      <mesh position={[0, 0.85, 0.27]} rotation={[0.1, 0, 0]} castShadow>
+      <mesh position={[0, 0.85, CHAIR.backZ]} rotation={[0.1, 0, 0]} castShadow>
         <boxGeometry args={[0.56, 0.64, 0.09]} />
         <meshStandardMaterial color={C.chairFabric} roughness={0.9} />
       </mesh>
@@ -246,7 +252,7 @@ export function Workstation({ deskIndex, state }: { deskIndex: number; state: Ag
         ))}
       </group>
 
-      <group position={[-DESK.w / 2 + 0.45, 0.32, -0.15]}>
+      <group position={[DESK_LOCAL.tower.x, 0.32, DESK_LOCAL.tower.z]}>
         <mesh castShadow>
           <boxGeometry args={[0.26, 0.64, 0.58]} />
           <meshStandardMaterial color={C.tower} roughness={0.6} metalness={0.2} />
@@ -261,33 +267,37 @@ export function Workstation({ deskIndex, state }: { deskIndex: number; state: Ag
         </mesh>
       </group>
 
-      <group position={[-0.34, top, -0.26]}>
+      <group position={[DESK_LOCAL.monitor.x, top, DESK_LOCAL.monitor.z]}>
         <Monitor state={state} width={0.98} height={0.58} primary />
       </group>
-      <group position={[0.74, top, -0.22]} rotation={[0, -0.42, 0]}>
+      <group
+        position={[DESK_LOCAL.monitor2.x, top, DESK_LOCAL.monitor2.z]}
+        rotation={[0, -0.42, 0]}
+      >
         <Monitor state={state} width={0.66} height={0.42} primary={false} />
       </group>
 
-      <group position={[-0.26, top + 0.015, 0.26]}>
+      <group position={[DESK_LOCAL.keyboard.x, top + 0.015, DESK_LOCAL.keyboard.z]}>
         <Keyboard />
       </group>
-      <mesh position={[0.34, top + 0.025, 0.28]} castShadow>
+      <mesh
+        position={[DESK_LOCAL.mouse.x, top + 0.025, DESK_LOCAL.mouse.z]}
+        castShadow
+      >
         <boxGeometry args={[0.105, 0.045, 0.17]} />
         <meshStandardMaterial color={C.plasticMid} roughness={0.6} />
       </mesh>
 
-      <group position={[0.68, top + 0.085, 0.3]}>
+      <group position={[DESK_LOCAL.mug.x, top + 0.085, DESK_LOCAL.mug.z]}>
         <Mug />
       </group>
       <mesh position={[-1.0, top + 0.008, 0.22]} rotation={[0, 0.28, 0]}>
         <boxGeometry args={[0.34, 0.016, 0.25]} />
         <meshStandardMaterial color={C.paper} roughness={0.95} />
       </mesh>
-      <group position={[-1.0, top, -0.3]}>
+      <group position={[DESK_LOCAL.lamp.x, top, DESK_LOCAL.lamp.z]}>
         <DeskLamp />
       </group>
-
-      <Chair {...chairPos(deskIndex)} />
     </group>
   );
 }

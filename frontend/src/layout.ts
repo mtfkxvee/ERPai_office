@@ -61,9 +61,31 @@ export const DESK_COUNT = DESKS.length;
 
 export const DESK = { w: 2.3, d: 1.1, topY: 0.78, topT: 0.07 };
 
+/** Posisi perabot meja RELATIF ke titik tengah meja.
+ *
+ * Dipakai bareng sama props.tsx (buat nempatin mesh) dan scripts/verify.ts
+ * (buat ngitung posisi world-nya). Sebelum ada ini, kursi dikasih koordinat
+ * absolut padahal grup mejanya udah digeser — kegeser dua kali dan nyasar ke
+ * tengah ruangan. Kalau offset-nya satu sumber, itu nggak bisa keulang. */
+export const DESK_LOCAL = {
+  chair: { x: 0, z: 1.05 },
+  monitor: { x: -0.34, z: -0.26 },
+  monitor2: { x: 0.74, z: -0.22 },
+  keyboard: { x: -0.26, z: 0.26 },
+  mouse: { x: 0.34, z: 0.28 },
+  mug: { x: 0.68, z: 0.3 },
+  tower: { x: -DESK.w / 2 + 0.45, z: -0.15 },
+  lamp: { x: -1.0, z: -0.3 },
+};
+
+/** Tinggi dudukan kursi. Harus pas sama DESK_SEAT di poses.ts, kalau nggak
+ * karakternya ngambang atau nyusup ke kursi. `npm run verify` ngecek ini. */
+export const CHAIR = { seatY: 0.49, seatT: 0.11, backZ: 0.27 };
+
+/** Posisi kursi dalam koordinat DUNIA (buat tujuan jalan & tes). */
 export function chairPos(deskIndex: number) {
   const d = DESKS[((deskIndex % DESK_COUNT) + DESK_COUNT) % DESK_COUNT];
-  return { x: d.x, z: d.z + 1.05 };
+  return { x: d.x + DESK_LOCAL.chair.x, z: d.z + DESK_LOCAL.chair.z };
 }
 
 export function deskStandPos(deskIndex: number) {

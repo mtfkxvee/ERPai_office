@@ -37,6 +37,18 @@ export const RIG = {
 /** Maju = +PI/2 di sumbu x. */
 export const FWD = Math.PI / 2;
 
+/** Rotasi y supaya karakter MENGHADAP arah (dx, dz).
+ *
+ * Muka ada di sisi -z, jadi vektor maju pada rotasi t adalah
+ * (-sin t, 0, -cos t). Biar itu searah (dx, dz):
+ *   -sin t = dx  dan  -cos t = dz   ->   t = atan2(-dx, -dz)
+ *
+ * Dulu di sini kepakai atan2(dx, dz), yang bikin vektor majunya jadi
+ * (-dx, -dz) — tepat berlawanan, jadi karakternya jalan mundur. */
+export function facingFor(dx: number, dz: number) {
+  return Math.atan2(-dx, -dz);
+}
+
 /** Tinggi pinggul saat nempel dudukan. */
 export const DESK_SEAT = 0.545;
 export const SOFA_SEAT = 0.625;

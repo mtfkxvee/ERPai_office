@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 import { BED, postureFor, routeTo, targetFor } from "./layout";
-import { poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
+import { facingFor, poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
 import { colorOf, displayPose } from "./store";
 import type { Agent, Pose } from "./types";
 
@@ -86,7 +86,7 @@ export function AgentChar({ agent }: { agent: Agent }) {
       const step = Math.min(WALK_SPEED * dt, dist);
       pos.current.x += (dx / dist) * step;
       pos.current.z += (dz / dist) * step;
-      body.current.rotation.y = Math.atan2(dx, dz);
+      body.current.rotation.y = facingFor(dx, dz);
     } else {
       body.current.rotation.y = goal.rotY;
     }

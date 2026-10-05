@@ -17,9 +17,11 @@ import * as THREE from "three";
 import {
   BED,
   bedSpot,
+  CHAIR,
   chairPos,
   DESK,
   DESK_COUNT,
+  DESK_LOCAL,
   DESKS,
   DOOR,
   LOUNGE,
@@ -33,7 +35,7 @@ import {
   WHITEBOARD,
   ZONES,
 } from "../src/layout.ts";
-import { poseJoints, RIG } from "../src/poses.ts";
+import { DESK_SEAT, facingFor, poseJoints, RIG } from "../src/poses.ts";
 
 /* ---------------------------------------------------------------- */
 /* Rig: hierarki yang sama persis dengan JSX di AgentChar.tsx        */
@@ -154,8 +156,17 @@ console.log("\nkerja di meja (desk 0)");
 {
   apply(rig, "working", 0);
   const d = DESKS[0];
-  const monitor = new THREE.Vector3(d.x - 0.34, DESK.topY + 0.63, d.z - 0.26);
-  const keyboard = new THREE.Vector3(d.x - 0.26, DESK.topY + 0.015, d.z + 0.26);
+  // Posisi perabot dihitung dari offset yang SAMA yang dipakai props.tsx.
+  const monitor = new THREE.Vector3(
+    d.x + DESK_LOCAL.monitor.x,
+    DESK.topY + 0.63,
+    d.z + DESK_LOCAL.monitor.z,
+  );
+  const keyboard = new THREE.Vector3(
+    d.x + DESK_LOCAL.keyboard.x,
+    DESK.topY + 0.015,
+    d.z + DESK_LOCAL.keyboard.z,
+  );
 
   facesToward(rig, monitor, "monitor");
 
@@ -179,6 +190,76 @@ console.log("\nkerja di meja (desk 0)");
     head.y > DESK.topY + 0.3,
     `kepala y=${head.y.toFixed(2)}`,
   );
+}
+
+/* ---- 1b. kursi ketemu sama yang duduk --------------------------- */
+console.log("\nkursi vs orang yang duduk");
+{
+  apply(rig, "working", 0);
+  const hip = wp(rig.hip.R);
+  const seat = chairPos(0);
+  const seatTop = CHAIR.seatY + CHAIR.seatT / 2;
+
+  check(
+    "kursi sebidang sama pinggul",
+    Math.abs(hip.x - seat.x) < 0.3 && Math.abs(hip.z - seat.z) < 0.3,
+    `pinggul (${hip.x.toFixed(2)}, ${hip.z.toFixed(2)}) vs kursi (${seat.x}, ${seat.z})`,
+  );
+  check(
+    "tinggi dudukan pas sama pose duduk",
+    Math.abs(seatTop - DESK_SEAT) < 0.02,
+    `dudukan ${seatTop.toFixed(3)} vs DESK_SEAT ${DESK_SEAT}`,
+  );
+  check(
+    "sandaran ada di belakang orangnya",
+    seat.z + CHAIR.backZ > hip.z,
+    `sandaran z=${(seat.z + CHAIR.backZ).toFixed(2)}, pinggul z=${hip.z.toFixed(2)}`,
+  );
+  // Kursi dan tujuan jalan harus sumber yang sama. Kalau salah satu pindah ke
+  // koordinat yang lain, selisih ini langsung kebuka.
+  const target = targetFor("working", 0);
+  check(
+    "kursi dan tujuan jalan satu titik",
+    seat.x === target.x && seat.z === target.z,
+    `kursi (${seat.x}, ${seat.z}) vs tujuan (${target.x}, ${target.z})`,
+  );
+  let allAligned = true;
+  for (let i = 0; i < DESK_COUNT; i++) {
+    const c = chairPos(i);
+    const dd = DESKS[i];
+    if (Math.abs(c.x - (dd.x + DESK_LOCAL.chair.x)) > 1e-9) allAligned = false;
+    if (Math.abs(c.z - (dd.z + DESK_LOCAL.chair.z)) > 1e-9) allAligned = false;
+  }
+  check("semua kursi nempel mejanya masing-masing", allAligned);
+}
+
+/* ---- 1c. arah jalan --------------------------------------------- */
+console.log("\narah jalan");
+{
+  const dirs: [string, number, number][] = [
+    ["ke +x (kanan)", 1, 0],
+    ["ke -x (kiri)", -1, 0],
+    ["ke +z (depan)", 0, 1],
+    ["ke -z (belakang)", 0, -1],
+    ["diagonal", 0.7, -0.7],
+  ];
+  for (const [name, dx, dz] of dirs) {
+    const { joints } = poseJoints("idle", "stand", true, 0.37, BED.matTop);
+    rig.root.position.set(10, joints.y, 10);
+    rig.body.rotation.set(0, facingFor(dx, dz), 0);
+    rig.torso.rotation.x = 0;
+    rig.head.rotation.set(0, 0, 0);
+    rig.root.updateMatrixWorld(true);
+
+    const forward = wp(rig.faceAhead).sub(wp(rig.face)).setY(0).normalize();
+    const want = new THREE.Vector3(dx, 0, dz).normalize();
+    const dot = forward.dot(want);
+    check(
+      `jalan maju ${name}`,
+      dot > 0.97,
+      `dot=${dot.toFixed(3)} (negatif = mundur); hadap (${forward.x.toFixed(2)}, ${forward.z.toFixed(2)}) vs gerak (${want.x.toFixed(2)}, ${want.z.toFixed(2)})`,
+    );
+  }
 }
 
 /* ---- 2. tidur di nap pod ---------------------------------------- */

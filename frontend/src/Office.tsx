@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import {
+  chairPos,
   DESK_COUNT,
   PARTITION,
   PLANTS,
@@ -11,6 +12,7 @@ import {
 import {
   BugZone,
   CeilingLights,
+  Chair,
   Plant,
   Shelf,
   Whiteboard,
@@ -206,6 +208,11 @@ export function Office({ agents }: { agents: Agent[] }) {
       {/* ruang kerja */}
       {Array.from({ length: DESK_COUNT }, (_, i) => (
         <Workstation key={i} deskIndex={i} state={stateByDesk.get(i) ?? "idle"} />
+      ))}
+      {/* Kursi dipasang di koordinat dunia pakai chairPos() — fungsi yang sama
+          yang dipakai karakter buat nentuin tempat duduknya. */}
+      {Array.from({ length: DESK_COUNT }, (_, i) => (
+        <Chair key={`c${i}`} {...chairPos(i)} />
       ))}
       <Whiteboard />
       <BugZone />
