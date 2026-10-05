@@ -54,12 +54,31 @@ setup manual dulu.
 | ---------- | ----------------------------------------- |
 | `working`  | duduk di meja, animasi ngetik             |
 | `thinking` | berdiri di whiteboard                     |
-| `idle`     | berdiri di pantry, megang cangkir         |
+| `idle`     | lihat tabel di bawah                      |
 | `blocked`  | di matras merah, tangan ke atas           |
 | `error`    | sama, tapi gemetar                        |
 | `done`     | duduk, tangan ngangkat; luruh ke idle 6 s |
 
 Warna layar monitor di mejanya ikut state ini juga.
+
+### Agent nganggur: dibedain dari lamanya
+
+`idle` dipecah jadi tiga tempat berdasarkan udah berapa lama nggak ada kabar.
+Ini **bukan state tambahan** yang bisa dilaporin — dihitung di frontend dari
+selisih waktu laporan terakhir, jadi kontrak API-nya nggak berubah.
+
+| Lama nganggur | Tempat          | Yang kebaca                      |
+| ------------- | --------------- | -------------------------------- |
+| < 45 detik    | pantry          | jeda antar task, bentar lagi jalan |
+| 45 s – 4 menit | lounge, main PS | beneran nggak ada kerjaan        |
+| > 4 menit     | kasur, tidur    | sesinya kemungkinan udah mati    |
+
+Gunanya praktis: sekali lihat ketahuan mana agent yang cuma nunggu dan mana yang
+prosesnya udah almarhum, tanpa perlu buka log. TV di lounge cuma nyala kalau ada
+yang beneran main.
+
+Ambangnya ada di `frontend/src/store.ts` (`IDLE_PANTRY_MS`, `IDLE_LOUNGE_MS`),
+sepasang sama `STALE_SECONDS` di `api.py`.
 
 ### Hook Claude Code
 

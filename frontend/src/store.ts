@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Agent, AgentState, OfficeEvent } from "./types";
+import type { Agent, AgentState, OfficeEvent, Pose } from "./types";
 
 /** Store mini, tanpa dependency. Cuma Map + listener. */
 
@@ -59,6 +59,25 @@ export function effectiveState(a: Agent, now: number): AgentState {
   if (age > STALE_MS) return "idle";
   if (a.state === "done" && age > DONE_DECAY_MS) return "idle";
   return a.state;
+}
+
+/* Ambang buat mecah `idle` jadi tiga tempat yang beda.
+ *
+ * Ini bukan state baru — cuma cara baca lamanya nggak ada kabar. Agent yang
+ * nunggu sebentar beda tempat sama agent yang sesinya udah mati, jadi sekali
+ * lihat kelihatan mana yang mana. */
+const IDLE_PANTRY_MS = 45 * 1000;
+const IDLE_LOUNGE_MS = 4 * 60 * 1000;
+
+/** Pose yang dipakai buat nentuin posisi & animasi karakter. */
+export function displayPose(a: Agent, now: number): Pose {
+  const state = effectiveState(a, now);
+  if (state !== "idle") return state;
+
+  const idleFor = now - a.seen;
+  if (idleFor < IDLE_PANTRY_MS) return "idle";
+  if (idleFor < IDLE_LOUNGE_MS) return "gaming";
+  return "sleeping";
 }
 
 export function colorOf(a: Agent) {

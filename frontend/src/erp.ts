@@ -52,26 +52,37 @@ export function subscribe(): () => void {
 /* Di dalam ERP ini NGGAK PERNAH aktif — supaya nggak ada animasi bohong. */
 /* ------------------------------------------------------------------ */
 
+/** Empat agent pertama yang aktif, sisanya sengaja dibikin nganggur dengan
+ * `seen` yang dibackdate — biar lounge PS dan area tidur kelihatan tanpa harus
+ * nungguin 4 menit, DAN tanpa ngubah ambang waktunya (kalau ambangnya yang
+ * digeser, preview-nya bohong soal timing). */
 const DEMO_AGENTS = [
-  { agent: "jarvis", role: "Voice" },
-  { agent: "erp-reporting", role: "Reporting" },
-  { agent: "wa-bot", role: "WhatsApp" },
-  { agent: "stock-opname", role: "Inventory" },
-  { agent: "claude-code", role: "Dev" },
+  { agent: "jarvis", role: "Voice", idleFor: 0 },
+  { agent: "erp-reporting", role: "Reporting", idleFor: 0 },
+  { agent: "wa-bot", role: "WhatsApp", idleFor: 0 },
+  { agent: "claude-code", role: "Dev", idleFor: 0 },
+  { agent: "stock-opname", role: "Inventory", idleFor: 100 * 1000 },
+  { agent: "gl-recon", role: "Finance", idleFor: 170 * 1000 },
+  { agent: "sheet-sync", role: "Sheets", idleFor: 9 * 60 * 1000 },
+  { agent: "pos-watcher", role: "POS", idleFor: 6 * 60 * 1000 },
 ];
+
+const ACTIVE_COUNT = 4;
 
 const DEMO_TOOLS = ["Read", "Edit", "Bash", "Grep", "WebFetch", "SQL"];
 
 export function startDemo(): () => void {
+  const now = Date.now();
   setAgents(
     DEMO_AGENTS.map((a, i) => ({
-      ...a,
+      agent: a.agent,
+      role: a.role,
       desk_index: i,
       color: null,
       state: "idle" as AgentState,
       tool: null,
       detail: null,
-      seen: Date.now(),
+      seen: now - a.idleFor,
     })),
   );
 
@@ -88,7 +99,7 @@ export function startDemo(): () => void {
   ];
 
   const timer = setInterval(() => {
-    const a = pick(DEMO_AGENTS);
+    const a = pick(DEMO_AGENTS.slice(0, ACTIVE_COUNT));
     const state = pick(states);
     applyEvent({
       agent: a.agent,

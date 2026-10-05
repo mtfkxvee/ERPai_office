@@ -4,6 +4,8 @@ import {
   BugZone,
   CeilingLights,
   CoffeeBar,
+  Lounge,
+  NapArea,
   Plants,
   Shelf,
   Whiteboard,
@@ -11,7 +13,7 @@ import {
 } from "./props";
 import { carpetTexture, runnerTexture, wallTexture } from "./textures";
 import type { Agent, AgentState } from "./types";
-import { effectiveState } from "./store";
+import { displayPose, effectiveState } from "./store";
 
 const SKIRTING = "#c3bdb2";
 const WALL_TOP = 3.1;
@@ -123,15 +125,18 @@ function Shell() {
 }
 
 export function Office({ agents }: { agents: Agent[] }) {
-  // Layar monitor nyala sesuai state agent yang duduk di meja itu.
-  const stateByDesk = useMemo(() => {
+  // Layar monitor nyala sesuai state agent yang duduk di meja itu, dan TV di
+  // lounge nyala cuma kalau ada yang beneran main.
+  const { stateByDesk, tvOn } = useMemo(() => {
     const now = Date.now();
     const map = new Map<number, AgentState>();
+    let gaming = false;
     for (const a of agents) {
       const idx = ((a.desk_index % DESK_COUNT) + DESK_COUNT) % DESK_COUNT;
       map.set(idx, effectiveState(a, now));
+      if (displayPose(a, now) === "gaming") gaming = true;
     }
-    return map;
+    return { stateByDesk: map, tvOn: gaming };
   }, [agents]);
 
   return (
@@ -143,6 +148,8 @@ export function Office({ agents }: { agents: Agent[] }) {
       <CoffeeBar />
       <Whiteboard />
       <BugZone />
+      <Lounge tvOn={tvOn} />
+      <NapArea />
       <Plants />
       <Shelf />
     </group>

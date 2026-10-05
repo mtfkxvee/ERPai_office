@@ -1,13 +1,15 @@
-import { effectiveState } from "./store";
-import type { Agent, AgentState } from "./types";
+import { displayPose } from "./store";
+import type { Agent, Pose } from "./types";
 
-const DOT: Record<AgentState, string> = {
-  idle: "#9aa0a6",
-  thinking: "#f9ca24",
-  working: "#6ab04c",
-  blocked: "#f0932b",
-  error: "#eb4d4b",
-  done: "#22a6b3",
+const DOT: Record<Pose, { c: string; label: string }> = {
+  idle: { c: "#c3c8d0", label: "idle" },
+  gaming: { c: "#b388ff", label: "main PS" },
+  sleeping: { c: "#7a8699", label: "tidur" },
+  thinking: { c: "#ffd166", label: "mikir" },
+  working: { c: "#8ee07a", label: "kerja" },
+  blocked: { c: "#f0932b", label: "ketahan" },
+  error: { c: "#ff6b5e", label: "error" },
+  done: { c: "#5ad7e0", label: "kelar" },
 };
 
 const panel: React.CSSProperties = {
@@ -21,7 +23,7 @@ const panel: React.CSSProperties = {
   font: "12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace",
   backdropFilter: "blur(6px)",
   pointerEvents: "none",
-  maxWidth: 260,
+  maxWidth: 280,
 };
 
 export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
@@ -43,14 +45,15 @@ export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
         )}
 
         {agents.map((a) => {
-          const s = effectiveState(a, now);
+          const p = displayPose(a, now);
+          const d = DOT[p];
           return (
             <div key={a.agent} style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
-              <span style={{ color: DOT[s] }}>●</span>
+              <span style={{ color: d.c }}>●</span>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
                 {a.agent}
               </span>
-              <span style={{ color: DOT[s] }}>{s}</span>
+              <span style={{ color: d.c }}>{d.label}</span>
             </div>
           );
         })}
@@ -62,7 +65,7 @@ export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
           bottom: 12,
           right: 12,
           color: "rgba(255,255,255,.72)",
-          font: "11px/1.4 ui-monospace, monospace",
+          font: "11px/1.45 ui-monospace, monospace",
           textShadow: "0 1px 2px rgba(0,0,0,.6)",
           pointerEvents: "none",
           textAlign: "right",
@@ -70,9 +73,9 @@ export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
       >
         drag = muter · scroll = zoom
         <br />
-        duduk di meja = kerja · whiteboard = mikir · pantry = idle · matras merah = ketahan
+        meja = kerja · whiteboard = mikir · matras merah = ketahan
         <br />
-        layar monitor ikut warna state agent-nya
+        nganggur: pantry &lt;45s · lounge PS &lt;4m · kasur &gt;4m
       </div>
     </>
   );
