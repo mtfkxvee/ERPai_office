@@ -1,0 +1,124 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:agent_name",
+ "creation": "2026-10-05 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "agent_name",
+  "role",
+  "enabled",
+  "column_break_identity",
+  "color",
+  "desk_index",
+  "section_break_live",
+  "current_state",
+  "current_tool",
+  "column_break_live",
+  "last_seen",
+  "current_detail"
+ ],
+ "fields": [
+  {
+   "fieldname": "agent_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Agent Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "role",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Role",
+   "description": "Dipakai cuma buat label di atas kepala karakter, misal: Dev, QA, Reporting"
+  },
+  {
+   "default": "1",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "description": "Kalau dimatiin, agent nggak dirender di office"
+  },
+  {
+   "fieldname": "column_break_identity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "#6ab04c",
+   "fieldname": "color",
+   "fieldtype": "Color",
+   "label": "Shirt Color"
+  },
+  {
+   "fieldname": "desk_index",
+   "fieldtype": "Int",
+   "label": "Desk Index",
+   "description": "Nomor meja di office (0-7). Diisi otomatis saat agent pertama kali lapor."
+  },
+  {
+   "fieldname": "section_break_live",
+   "fieldtype": "Section Break",
+   "label": "Live Status"
+  },
+  {
+   "fieldname": "current_state",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Current State",
+   "options": "\nidle\nthinking\nworking\nblocked\nerror\ndone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_tool",
+   "fieldtype": "Data",
+   "label": "Current Tool",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_live",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_seen",
+   "fieldtype": "Datetime",
+   "label": "Last Seen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "current_detail",
+   "fieldtype": "Small Text",
+   "label": "Current Detail",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-10-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Office",
+ "name": "AI Agent",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 0
+}

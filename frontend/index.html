@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Office — dev</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0f1115;
+      }
+      #office {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Cuma buat `npm run dev`. Di dalam ERP, mount-nya dilakukan ai_office.js. -->
+    <div id="office"></div>
+    <script type="module">
+      import { mount } from "/src/main.tsx";
+      mount(document.getElementById("office"));
+    </script>
+  </body>
+</html>

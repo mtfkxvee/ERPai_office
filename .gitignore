@@ -1,0 +1,26 @@
+# deps
+node_modules/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# vite / tsc
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# env & kredensial — jangan pernah masuk repo
+.env
+.env.*
+!.env.example
+
+# os
+.DS_Store
+Thumbs.db
+*.log
+
+# CATATAN: xsha_office/public/office/office.js SENGAJA di-commit.
+# `bench get-app` nggak jalanin Vite, jadi bundle hasil build harus ikut
+# ke repo — kalau nggak, Frappe Page-nya kosong pas di-install.

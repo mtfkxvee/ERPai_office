@@ -1,0 +1,23 @@
+{
+ "content": null,
+ "creation": "2026-10-05 00:00:00.000000",
+ "docstatus": 0,
+ "doctype": "Page",
+ "idx": 0,
+ "modified": "2026-10-05 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "AI Office",
+ "name": "ai-office",
+ "owner": "Administrator",
+ "page_name": "ai-office",
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ],
+ "script": null,
+ "standard": "Yes",
+ "style": null,
+ "title": "AI Office",
+ "system_page": 0
+}
