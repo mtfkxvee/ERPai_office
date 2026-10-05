@@ -80,6 +80,42 @@ yang beneran main.
 Ambangnya ada di `frontend/src/store.ts` (`IDLE_PANTRY_MS`, `IDLE_LOUNGE_MS`),
 sepasang sama `STALE_SECONDS` di `api.py`.
 
+## Dua ruangan
+
+Dipisah sekat dengan satu bukaan pintu di tengah. Karakter nggak bisa nembus
+dinding — kalau pindah ruangan, `routeTo()` nyelipin titik mampir di pintu.
+
+**Ruang kerja** (kiri, lantai karpet): 8 workstation dua monitor, whiteboard,
+matras zona bug, rak dokumen, panel lampu putih.
+
+**Ruang santai** (kanan, lantai parket): micro-kitchen, meja tinggi + bangku,
+lounge PS dengan TV besar, 3 nap pod bersekat, sudut bean bag, meja ping pong,
+phone booth kaca, sudut baca berisi rak buku dan kursi, lampu gantung hangat,
+pot gantung, papan nama nyala.
+
+Bedanya sengaja dibuat kebaca dari material lantai dan jenis lampu, bukan cuma
+dari sekatnya.
+
+## Verifikasi tanpa browser
+
+```bash
+cd frontend && npm run verify
+```
+
+Bangun hierarki transform karakter pakai three.js headless, hitung posisi sendi
+di world-space, lalu cocokin sama posisi perabot: apakah mukanya menghadap
+monitor, tangannya di atas keyboard, kakinya masuk kolong meja, kepalanya
+mendarat di bantal, rutenya lewat pintu.
+
+Ini ada karena pernah ada bug di mana karakter "duduk kerja" sebenernya
+menghadap menjauh dari monitor dan lengannya ngayun ke belakang. `tsc` lolos,
+`vite build` lolos, dan dari kamera orbit yang jauh itu kelihatan wajar.
+
+Rig dan matematika pose-nya di `src/poses.ts`, diimpor BARENG oleh
+`AgentChar.tsx` (buat render) dan `scripts/verify.ts` (buat tes) — jadi tesnya
+nggak bisa hijau sambil render-nya salah. Jalanin ini tiap habis nyentuh pose,
+arah hadap, atau tata letak.
+
 ### Hook Claude Code
 
 Pola yang dipakai proyek sejenis (`agent-virtual-office`, `pixel-agents`,
@@ -96,14 +132,17 @@ Pola yang dipakai proyek sejenis (`agent-virtual-office`, `pixel-agents`,
 
 ```
 frontend/                    source Vite (React Three Fiber)
-  src/layout.ts              bentuk ruangan + mapping state -> posisi
-  src/props.tsx              perabot: meja, monitor, kursi, pantry, rak
-  src/Office.tsx             lantai/dinding/kaca + perakitan ruangan
+  src/layout.ts              bentuk dua ruangan, zona, rute lewat pintu
+  src/poses.ts               rig karakter + matematika pose (fungsi murni)
+  src/props.tsx              perabot ruang kerja
+  src/relax.tsx              perabot ruang santai
+  src/Office.tsx             lantai/dinding/sekat + perakitan dua ruangan
   src/AgentChar.tsx          karakter bersendi (lutut & siku) + animasi
   src/textures.ts            tekstur digenerate canvas, nol file asset
   src/erp.ts                 transport: socketio Frappe, atau demo
-  src/store.ts               state agent + peluruhan stale
+  src/store.ts               state agent + peluruhan stale + turunan pose
   src/main.tsx               expose window.XshaOffice.mount()
+  scripts/verify.ts          tes geometri pose, jalan di Node tanpa browser
 
 xsha_office/
   api.py                     report() + get_state()
@@ -132,8 +171,9 @@ Konsekuensinya: hasil build ikut di-commit, dan tiap ubah frontend harus rebuild
 ```bash
 cd frontend
 npm install
-npm run dev      # localhost, mode demo
-npm run build    # output ke ../xsha_office/public/office/office.js
+npm run dev       # localhost, mode demo
+npm run verify    # tes geometri pose (butuh Node >= 22)
+npm run build     # output ke ../xsha_office/public/office/office.js
 ```
 
 Nol fetch keluar: tekstur digenerate canvas waktu runtime, label pakai DOM bukan

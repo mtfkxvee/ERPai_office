@@ -18,21 +18,21 @@ function Lighting() {
       {/* Satu matahari yang bikin bayangan, plus dua fill lemah. Tanpa fill,
           MeshStandardMaterial tanpa environment map kelihatan mati. */}
       <directionalLight
-        position={[16, 24, 8]}
+        position={[26, 30, 10]}
         intensity={1.45}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-20}
+        shadow-camera-left={-30}
+        shadow-camera-right={30}
+        shadow-camera-top={30}
+        shadow-camera-bottom={-30}
         shadow-camera-near={1}
-        shadow-camera-far={70}
+        shadow-camera-far={100}
         shadow-bias={-0.0008}
       />
-      <directionalLight position={[-12, 10, 18]} intensity={0.35} />
-      <directionalLight position={[8, 6, -16]} intensity={0.25} />
+      <directionalLight position={[-14, 12, 20]} intensity={0.35} />
+      <directionalLight position={[14, 8, -18]} intensity={0.25} />
       <hemisphereLight args={["#e6eef5", "#6d6458", 0.55]} />
       <ambientLight intensity={0.22} />
     </>
@@ -54,7 +54,7 @@ function App() {
     <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <Canvas
         shadows
-        camera={{ position: [ROOM.w / 2 + 15, 12.5, ROOM.d / 2 + 19], fov: 40 }}
+        camera={{ position: [ROOM.w / 2 + 19, 18, ROOM.d / 2 + 27], fov: 40 }}
         dpr={[1, 2]}
         gl={{ antialias: true }}
         onCreated={({ gl }) => {
@@ -63,7 +63,7 @@ function App() {
         }}
       >
         <color attach="background" args={["#ccdce6"]} />
-        <fog attach="fog" args={["#ccdce6", 45, 95]} />
+        <fog attach="fog" args={["#ccdce6", 60, 130]} />
         <Lighting />
 
         <Office agents={agents} />
@@ -75,7 +75,7 @@ function App() {
           target={TARGET}
           enablePan={false}
           minDistance={8}
-          maxDistance={60}
+          maxDistance={90}
           // Dijaga di atas garis lantai supaya kamera nggak nyelip ke bawah.
           maxPolarAngle={Math.PI / 2.15}
           minPolarAngle={0.12}

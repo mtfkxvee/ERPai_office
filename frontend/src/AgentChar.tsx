@@ -2,7 +2,8 @@ import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
-import { BED, postureFor, targetFor } from "./layout";
+import { BED, postureFor, routeTo, targetFor } from "./layout";
+import { poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
 import { colorOf, displayPose } from "./store";
 import type { Agent, Pose } from "./types";
 
@@ -11,16 +12,6 @@ const HAIR = "#2b2320";
 const TROUSERS = "#39414f";
 const SHOE = "#23262b";
 const WALK_SPEED = 2.6;
-
-/** Tinggi pinggul (lokal) karakter waktu berdiri. Dipakai buat ngitung seberapa
- * jauh badan diturunin waktu duduk. */
-const HIP_Y = 0.75;
-const DESK_SEAT = 0.545;
-const SOFA_SEAT = 0.625;
-
-/** Rotasi POSITIF di sumbu x = anggota badan maju (ke -z), karena karakter
- * menghadap -z. Semua angka di bawah ngikut konvensi ini. */
-const FWD = Math.PI / 2;
 
 const STATE_LABEL: Record<Pose, { text: string; color: string }> = {
   idle: { text: "idle", color: "#c3c8d0" },
@@ -33,38 +24,8 @@ const STATE_LABEL: Record<Pose, { text: string; color: string }> = {
   done: { text: "kelar", color: "#5ad7e0" },
 };
 
-type Joints = {
-  y: number;
-  lean: number;
-  recline: number;
-  hipL: number;
-  hipR: number;
-  kneeL: number;
-  kneeR: number;
-  shL: number;
-  shR: number;
-  elL: number;
-  elR: number;
-  headZ: number;
-  headX: number;
-};
-
-const ZERO: Joints = {
-  y: 0,
-  lean: 0,
-  recline: 0,
-  hipL: 0,
-  hipR: 0,
-  kneeL: 0,
-  kneeR: 0,
-  shL: 0,
-  shR: 0,
-  elL: 0,
-  elR: 0,
-  headZ: 0,
-  headX: 0,
-};
-
+/** Karakter bersendi (lutut & siku) yang bisa duduk, main PS, dan rebahan.
+ * Angka rig-nya dari poses.ts, dipakai bareng sama `npm run verify`. */
 export function AgentChar({ agent }: { agent: Agent }) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
@@ -85,8 +46,10 @@ export function AgentChar({ agent }: { agent: Agent }) {
   const shirt = colorOf(agent);
   const spawn = targetFor(agent.state, agent.desk_index);
   const pos = useRef(new THREE.Vector3(spawn.x, 0, spawn.z));
-  // Sudut yang sedang dipakai, biar perpindahan pose dilerp bukan nyeplak.
-  const cur = useRef<Joints>({ ...ZERO });
+  const cur = useRef<Joints>({ ...ZERO_JOINTS });
+  // Rute yang sedang dijalanin. Isinya >1 titik kalau harus lewat pintu.
+  const path = useRef<{ x: number; z: number }[]>([]);
+  const lastGoal = useRef("");
 
   useFrame((_, dtRaw) => {
     const g = root.current;
@@ -97,98 +60,39 @@ export function AgentChar({ agent }: { agent: Agent }) {
     const t = performance.now() / 1000;
 
     const pose = displayPose(agent, Date.now());
-    const target = targetFor(pose, agent.desk_index);
+    const goal = targetFor(pose, agent.desk_index);
 
-    const dx = target.x - pos.current.x;
-    const dz = target.z - pos.current.z;
-    const dist = Math.hypot(dx, dz);
+    // Tujuan ganti -> hitung ulang rutenya (bisa mampir ke pintu dulu).
+    const goalKey = `${goal.x},${goal.z}`;
+    if (goalKey !== lastGoal.current) {
+      lastGoal.current = goalKey;
+      path.current = routeTo(pos.current.x, pos.current.z, goal);
+    }
+
+    let wp = path.current[0] ?? goal;
+    let dx = wp.x - pos.current.x;
+    let dz = wp.z - pos.current.z;
+    let dist = Math.hypot(dx, dz);
+    while (dist < 0.12 && path.current.length > 1) {
+      path.current.shift();
+      wp = path.current[0];
+      dx = wp.x - pos.current.x;
+      dz = wp.z - pos.current.z;
+      dist = Math.hypot(dx, dz);
+    }
+
     const walking = dist > 0.08;
-
     if (walking) {
       const step = Math.min(WALK_SPEED * dt, dist);
       pos.current.x += (dx / dist) * step;
       pos.current.z += (dz / dist) * step;
       body.current.rotation.y = Math.atan2(dx, dz);
     } else {
-      body.current.rotation.y = target.rotY;
+      body.current.rotation.y = goal.rotY;
     }
 
     const posture = walking ? "stand" : postureFor(pose);
-    const want: Joints = { ...ZERO };
-    let shake = 0;
-
-    if (walking) {
-      const s = Math.sin(t * 8.5);
-      want.hipL = s * 0.6;
-      want.hipR = -s * 0.6;
-      want.kneeL = -(0.2 + Math.max(0, s) * 0.5);
-      want.kneeR = -(0.2 + Math.max(0, -s) * 0.5);
-      want.shL = s * 0.5;
-      want.shR = -s * 0.5;
-      want.elL = 0.3;
-      want.elR = 0.3;
-      want.y = Math.abs(s) * 0.04;
-    } else if (posture === "desk") {
-      want.y = DESK_SEAT - HIP_Y;
-      want.hipL = want.hipR = FWD - 0.08;
-      want.kneeL = want.kneeR = -FWD + 0.12;
-      if (pose === "working") {
-        want.shL = want.shR = 0.68;
-        want.elL = want.elR = 0.6 + Math.sin(t * 15) * 0.09;
-        want.headX = 0.14;
-        want.lean = 0.06;
-      } else {
-        // done: tangan ngangkat
-        want.shL = want.shR = 2.5;
-        want.elL = want.elR = 0.4;
-        want.y += Math.max(0, Math.sin(t * 6)) * 0.07;
-      }
-    } else if (posture === "sofa") {
-      // nyender, kaki agak nyelonjor, dua tangan megang stik
-      want.y = SOFA_SEAT - HIP_Y;
-      want.recline = -0.14;
-      want.hipL = want.hipR = FWD - 0.22;
-      want.kneeL = -FWD + 0.46;
-      want.kneeR = -FWD + 0.38;
-      want.shL = want.shR = 0.5;
-      want.elL = 1.24 + Math.sin(t * 11) * 0.05;
-      want.elR = 1.24 + Math.sin(t * 11 + 1.4) * 0.05;
-      want.headX = 0.07;
-    } else if (posture === "bed") {
-      // Badan diputar 90 derajat di sumbu x: kepala ke arah +z (sisi bantal).
-      want.recline = FWD;
-      want.y = BED.matTop + 0.15 + Math.sin(t * 1.1) * 0.012;
-      want.shL = want.shR = 0.06;
-      want.elL = want.elR = 0.12;
-      want.headZ = 0.12;
-    } else {
-      switch (pose) {
-        case "thinking":
-          // tangan kanan nunjuk whiteboard
-          want.shR = 1.6;
-          want.elR = 0.1;
-          want.shL = 0.15;
-          want.elL = 1.3;
-          want.headZ = Math.sin(t * 1.5) * 0.16;
-          break;
-        case "blocked":
-          want.shL = want.shR = 2.35;
-          want.elL = want.elR = 0.9;
-          shake = Math.sin(t * 15) * 0.03;
-          break;
-        case "error":
-          want.shL = want.shR = 2.8;
-          want.elL = want.elR = 1.1;
-          shake = Math.sin(t * 25) * 0.06;
-          break;
-        default:
-          // idle di pantry: napas, tangan kanan megang cangkir
-          want.y = Math.sin(t * 2.2) * 0.03;
-          want.shL = want.shR = 0.18;
-          want.elL = want.elR = 1.5;
-          want.headZ = Math.sin(t * 0.8) * 0.06;
-      }
-    }
+    const { joints: want, shake } = poseJoints(pose, posture, walking, t, BED.matTop);
 
     // Lerp ke pose tujuan — bangun dari kasur jadi mulus, bukan patah.
     const k = 1 - Math.exp(-9 * dt);
@@ -233,22 +137,22 @@ export function AgentChar({ agent }: { agent: Agent }) {
     shoulderRef: React.RefObject<THREE.Group | null>;
     elbowRef: React.RefObject<THREE.Group | null>;
   }) => (
-    <group ref={shoulderRef} position={[0.375 * side, 1.5, 0]}>
-      <mesh position={[0, -0.19, 0]} castShadow>
-        <boxGeometry args={[0.24, 0.38, 0.24]} />
+    <group ref={shoulderRef} position={[RIG.shoulderX * side, RIG.shoulderY, 0]}>
+      <mesh position={[0, -RIG.upperArmLen / 2, 0]} castShadow>
+        <boxGeometry args={[0.24, RIG.upperArmLen, 0.24]} />
         <meshStandardMaterial color={shirt} roughness={0.85} />
       </mesh>
-      <group ref={elbowRef} position={[0, -0.38, 0]}>
-        <mesh position={[0, -0.18, 0]} castShadow>
-          <boxGeometry args={[0.22, 0.36, 0.22]} />
+      <group ref={elbowRef} position={[0, RIG.elbowY, 0]}>
+        <mesh position={[0, -RIG.forearmLen / 2, 0]} castShadow>
+          <boxGeometry args={[0.22, RIG.forearmLen, 0.22]} />
           <meshStandardMaterial color={shirt} roughness={0.85} />
         </mesh>
-        <mesh position={[0, -0.41, 0]} castShadow>
+        <mesh position={[0, RIG.handY, 0]} castShadow>
           <boxGeometry args={[0.2, 0.15, 0.22]} />
           <meshStandardMaterial color={SKIN} roughness={0.8} />
         </mesh>
         {side > 0 && (
-          <group ref={heldMug} position={[0, -0.47, -0.13]}>
+          <group ref={heldMug} position={[0, RIG.handY - 0.06, -0.13]}>
             <mesh castShadow>
               <boxGeometry args={[0.13, 0.15, 0.13]} />
               <meshStandardMaterial color="#e8e4dc" roughness={0.5} />
@@ -268,17 +172,17 @@ export function AgentChar({ agent }: { agent: Agent }) {
     hipRef: React.RefObject<THREE.Group | null>;
     kneeRef: React.RefObject<THREE.Group | null>;
   }) => (
-    <group ref={hipRef} position={[0.135 * side, HIP_Y, 0]}>
-      <mesh position={[0, -0.2, 0]} castShadow>
-        <boxGeometry args={[0.25, 0.4, 0.26]} />
+    <group ref={hipRef} position={[RIG.hipX * side, RIG.hipY, 0]}>
+      <mesh position={[0, -RIG.thighLen / 2, 0]} castShadow>
+        <boxGeometry args={[0.25, RIG.thighLen, 0.26]} />
         <meshStandardMaterial color={TROUSERS} roughness={0.9} />
       </mesh>
-      <group ref={kneeRef} position={[0, -0.4, 0]}>
-        <mesh position={[0, -0.185, 0]} castShadow>
-          <boxGeometry args={[0.23, 0.37, 0.24]} />
+      <group ref={kneeRef} position={[0, RIG.kneeY, 0]}>
+        <mesh position={[0, -RIG.shinLen / 2, 0]} castShadow>
+          <boxGeometry args={[0.23, RIG.shinLen, 0.24]} />
           <meshStandardMaterial color={TROUSERS} roughness={0.9} />
         </mesh>
-        <mesh position={[0, -0.4, -0.05]} castShadow>
+        <mesh position={[0, RIG.footY, RIG.footZ]} castShadow>
           <boxGeometry args={[0.26, 0.1, 0.34]} />
           <meshStandardMaterial color={SHOE} roughness={0.6} />
         </mesh>
@@ -316,8 +220,7 @@ export function AgentChar({ agent }: { agent: Agent }) {
 
       <group ref={body}>
         <group ref={torso}>
-          {/* badan */}
-          <mesh position={[0, 1.12, 0]} castShadow>
+          <mesh position={[0, RIG.torsoY, 0]} castShadow>
             <boxGeometry args={[0.52, 0.78, 0.29]} />
             <meshStandardMaterial color={shirt} roughness={0.85} />
           </mesh>
@@ -325,7 +228,6 @@ export function AgentChar({ agent }: { agent: Agent }) {
             <boxGeometry args={[0.46, 0.07, 0.3]} />
             <meshStandardMaterial color="#f0efe9" roughness={0.8} />
           </mesh>
-          {/* lanyard + kartu akses */}
           <mesh position={[0, 1.28, -0.149]}>
             <boxGeometry args={[0.07, 0.3, 0.008]} />
             <meshStandardMaterial color="#2a3340" roughness={0.9} />
@@ -353,10 +255,9 @@ export function AgentChar({ agent }: { agent: Agent }) {
             ))}
           </group>
 
-          {/* kepala */}
-          <group ref={head} position={[0, 1.75, 0]}>
+          <group ref={head} position={[0, RIG.headY, 0]}>
             <mesh castShadow>
-              <boxGeometry args={[0.5, 0.5, 0.5]} />
+              <boxGeometry args={[RIG.headSize, RIG.headSize, RIG.headSize]} />
               <meshStandardMaterial color={SKIN} roughness={0.8} />
             </mesh>
             <mesh position={[0, 0.23, 0.01]} castShadow>
@@ -369,7 +270,7 @@ export function AgentChar({ agent }: { agent: Agent }) {
             </mesh>
             {/* mata — muka ada di sisi -z, itu yang nentuin arah hadap */}
             {[-0.115, 0.115].map((ex) => (
-              <group key={ex} position={[ex, 0.035, -0.251]}>
+              <group key={ex} position={[ex, 0.035, RIG.faceZ]}>
                 <mesh>
                   <boxGeometry args={[0.09, 0.1, 0.008]} />
                   <meshStandardMaterial color="#f7f7f5" roughness={0.6} />
@@ -381,12 +282,12 @@ export function AgentChar({ agent }: { agent: Agent }) {
               </group>
             ))}
             {[-0.115, 0.115].map((ex) => (
-              <mesh key={`b${ex}`} position={[ex, 0.115, -0.251]}>
+              <mesh key={`b${ex}`} position={[ex, 0.115, RIG.faceZ]}>
                 <boxGeometry args={[0.1, 0.022, 0.006]} />
                 <meshStandardMaterial color={HAIR} roughness={0.9} />
               </mesh>
             ))}
-            <mesh position={[0, -0.13, -0.251]}>
+            <mesh position={[0, -0.13, RIG.faceZ]}>
               <boxGeometry args={[0.11, 0.025, 0.006]} />
               <meshStandardMaterial color="#9c6b58" roughness={0.8} />
             </mesh>

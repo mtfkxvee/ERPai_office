@@ -156,58 +156,186 @@ export const screenTexture = () =>
     return tex;
   });
 
-/** Layar TV waktu ada yang main: bidang warna abstrak + bar HUD, jadi dari
- * jauh kebaca "ada game jalan" tanpa perlu gambar game beneran. */
-export const gameTexture = () =>
-  cached("game", () => {
-    const w = 192;
-    const h = 108;
+/** Lantai parket ruang santai — beda bahan dari karpet ruang kerja, biar
+ * pindah ruangan langsung kerasa dari lantainya. */
+export const parquetTexture = () =>
+  cached("parquet", () =>
+    make(
+      128,
+      "#c49a68",
+      (ctx, size) => {
+        const cell = 32;
+        for (let gy = 0; gy < size; gy += cell) {
+          for (let gx = 0; gx < size; gx += cell) {
+            const vertical = ((gx / cell + gy / cell) % 2) === 0;
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = Math.random() > 0.5 ? "#ffffff" : "#000000";
+            ctx.fillRect(gx, gy, cell, cell);
+            ctx.globalAlpha = 0.14;
+            ctx.fillStyle = "#000000";
+            for (let k = 0; k <= cell; k += 8) {
+              if (vertical) ctx.fillRect(gx + k, gy, 1, cell);
+              else ctx.fillRect(gx, gy + k, cell, 1);
+            }
+            ctx.globalAlpha = 0.3;
+            ctx.fillRect(gx, gy, cell, 1);
+            ctx.fillRect(gx, gy, 1, cell);
+          }
+        }
+        ctx.globalAlpha = 1;
+        grain(ctx, size, 0.05);
+      },
+      [10, 5],
+    ),
+  );
+
+/** Siaran bola di layar PS. Tampilan kamera samping ala FIFA: lapangan
+ * bergaris dengan perspektif, dua tim, skor di kiri atas, timer. */
+export const footballTexture = () =>
+  cached("football", () => {
+    const w = 256;
+    const h = 144;
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d")!;
 
-    // langit -> tanah
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, "#1b3b6f");
-    sky.addColorStop(0.55, "#4a7ab8");
-    sky.addColorStop(0.56, "#2f6b3a");
-    sky.addColorStop(1, "#1d4426");
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, w, h);
+    const HORIZON = 34;
 
-    // siluet gunung
-    ctx.fillStyle = "#15304f";
-    for (let i = 0; i < 5; i++) {
-      const bx = i * 44 - 10;
+    // tribun
+    const stand = ctx.createLinearGradient(0, 0, 0, HORIZON);
+    stand.addColorStop(0, "#15181f");
+    stand.addColorStop(1, "#2b3340");
+    ctx.fillStyle = stand;
+    ctx.fillRect(0, 0, w, HORIZON);
+    for (let i = 0; i < 900; i++) {
+      ctx.fillStyle = `rgba(${150 + Math.random() * 90},${150 + Math.random() * 90},${160 + Math.random() * 90},${0.1 + Math.random() * 0.3})`;
+      ctx.fillRect(Math.random() * w, Math.random() * (HORIZON - 4), 1.6, 1.6);
+    }
+    // papan iklan pinggir lapangan
+    ctx.fillStyle = "#101418";
+    ctx.fillRect(0, HORIZON - 7, w, 7);
+    for (let i = 0; i < 9; i++) {
+      ctx.fillStyle = ["#1d4ed8", "#0f766e", "#b91c1c", "#1f2937"][i % 4];
+      ctx.fillRect(i * 29, HORIZON - 6, 27, 5);
+    }
+
+    // rumput, makin ke bawah makin lebar (perspektif)
+    const turf = ctx.createLinearGradient(0, HORIZON, 0, h);
+    turf.addColorStop(0, "#2f7a3e");
+    turf.addColorStop(1, "#3f9a4d");
+    ctx.fillStyle = turf;
+    ctx.fillRect(0, HORIZON, w, h - HORIZON);
+
+    // garis potong rumput
+    for (let i = 0; i < 9; i++) {
+      if (i % 2) continue;
+      ctx.fillStyle = "rgba(255,255,255,.045)";
+      const topW = (w / 9) * 0.55;
+      const x0 = w / 2 + (i - 4.5) * topW;
+      const x1 = w / 2 + (i - 4.5) * (w / 9);
       ctx.beginPath();
-      ctx.moveTo(bx, 61);
-      ctx.lineTo(bx + 22, 61 - (18 + Math.random() * 14));
-      ctx.lineTo(bx + 46, 61);
+      ctx.moveTo(x0, HORIZON);
+      ctx.lineTo(x0 + topW, HORIZON);
+      ctx.lineTo(x1 + w / 9, h);
+      ctx.lineTo(x1, h);
       ctx.closePath();
       ctx.fill();
     }
 
-    // HUD: bar nyawa + minimap
-    ctx.fillStyle = "rgba(0,0,0,.45)";
-    ctx.fillRect(6, 6, 58, 7);
-    ctx.fillStyle = "#4ade80";
-    ctx.fillRect(7, 7, 42, 5);
-    ctx.fillStyle = "rgba(0,0,0,.45)";
-    ctx.fillRect(6, 16, 40, 5);
-    ctx.fillStyle = "#60a5fa";
-    ctx.fillRect(7, 17, 29, 3);
-    ctx.strokeStyle = "rgba(255,255,255,.5)";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(w - 40, 6, 33, 26);
-    ctx.fillStyle = "#facc15";
-    ctx.fillRect(w - 26, 18, 3, 3);
+    ctx.strokeStyle = "rgba(255,255,255,.82)";
+    ctx.lineWidth = 1.4;
 
-    // karakter kecil di tengah
-    ctx.fillStyle = "#e8e4dc";
-    ctx.fillRect(w / 2 - 4, 54, 8, 16);
-    ctx.fillStyle = "#c0523d";
-    ctx.fillRect(w / 2 - 4, 58, 8, 7);
+    // garis tengah (vertikal, melebar ke bawah)
+    ctx.beginPath();
+    ctx.moveTo(w / 2, HORIZON);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+
+    // lingkaran tengah, dibikin elips karena perspektif
+    ctx.beginPath();
+    ctx.ellipse(w / 2, HORIZON + 62, 46, 17, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // garis samping atas & bawah
+    ctx.beginPath();
+    ctx.moveTo(10, HORIZON + 4);
+    ctx.lineTo(w - 10, HORIZON + 4);
+    ctx.stroke();
+
+    // kotak penalti kiri & kanan
+    for (const side of [-1, 1]) {
+      const bx = side < 0 ? 4 : w - 4;
+      const inner = side < 0 ? 46 : w - 46;
+      ctx.beginPath();
+      ctx.moveTo(bx, HORIZON + 26);
+      ctx.lineTo(inner, HORIZON + 30);
+      ctx.lineTo(inner, HORIZON + 86);
+      ctx.lineTo(bx, HORIZON + 100);
+      ctx.stroke();
+    }
+
+    // gawang
+    ctx.strokeStyle = "rgba(255,255,255,.95)";
+    ctx.lineWidth = 2;
+    for (const side of [-1, 1]) {
+      const gx = side < 0 ? 6 : w - 6;
+      ctx.strokeRect(side < 0 ? 2 : w - 12, HORIZON + 50, 10, 22);
+      void gx;
+    }
+
+    // pemain: tim merah vs biru, ada bayangan dikit
+    const players: [number, number, string][] = [
+      [70, 96, "#d12d2d"],
+      [96, 74, "#d12d2d"],
+      [118, 108, "#d12d2d"],
+      [142, 80, "#d12d2d"],
+      [60, 62, "#d12d2d"],
+      [172, 100, "#d12d2d"],
+      [128, 60, "#2a5fd4"],
+      [150, 112, "#2a5fd4"],
+      [182, 76, "#2a5fd4"],
+      [206, 98, "#2a5fd4"],
+      [104, 120, "#2a5fd4"],
+      [228, 66, "#2a5fd4"],
+      [34, 84, "#f5d400"],
+    ];
+    for (const [px, py, col] of players) {
+      const scale = 0.7 + (py - HORIZON) / (h - HORIZON) * 0.7;
+      ctx.fillStyle = "rgba(0,0,0,.28)";
+      ctx.beginPath();
+      ctx.ellipse(px, py + 1, 4 * scale, 1.6 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = col;
+      ctx.fillRect(px - 2.2 * scale, py - 11 * scale, 4.4 * scale, 7.5 * scale);
+      ctx.fillStyle = "#e8c9a0";
+      ctx.fillRect(px - 1.6 * scale, py - 14.5 * scale, 3.2 * scale, 3.4 * scale);
+      ctx.fillStyle = "#f2f2f0";
+      ctx.fillRect(px - 2 * scale, py - 4 * scale, 4 * scale, 4 * scale);
+    }
+
+    // bola
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(133, 94, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // papan skor
+    ctx.fillStyle = "rgba(8,11,16,.88)";
+    ctx.fillRect(8, 8, 96, 17);
+    ctx.fillStyle = "#d12d2d";
+    ctx.fillRect(8, 8, 4, 17);
+    ctx.font = "bold 10px ui-monospace, monospace";
+    ctx.fillStyle = "#ffffff";
+    ctx.textBaseline = "middle";
+    ctx.fillText("XSH", 17, 17);
+    ctx.fillText("2 - 1", 44, 17);
+    ctx.fillText("MGT", 76, 17);
+    ctx.fillStyle = "rgba(8,11,16,.88)";
+    ctx.fillRect(8, 27, 40, 13);
+    ctx.font = "bold 9px ui-monospace, monospace";
+    ctx.fillStyle = "#4ade80";
+    ctx.fillText("67:24", 14, 34);
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;

@@ -2,25 +2,24 @@ import { useFrame } from "@react-three/fiber";
 import { useMemo } from "react";
 import * as THREE from "three";
 import {
-  BED,
-  BED_X,
+  BUGZONE,
   CEILING_LIGHTS,
   chairPos,
   DESK,
   DESKS,
-  LOUNGE,
-  PLANTS,
-  SOFA_SEATS,
-  ZONES,
+  SHELF,
+  WHITEBOARD,
 } from "./layout";
-import { boardTexture, gameTexture, runnerTexture, screenTexture, woodTexture } from "./textures";
+import { boardTexture, screenTexture, woodTexture } from "./textures";
 import type { AgentState } from "./types";
 
-/** Semua perabot dibangun dari box kecil-kecil. Bentuknya tetep tegas/boxy
- * (nggak ada kurva), tapi proporsinya ngikut benda nyata — makanya monitor
- * kebaca sebagai monitor, bukan kubus yang ditempel gambar. */
+/** Perabot RUANG KERJA. Semuanya dibangun dari box kecil-kecil: bentuknya tetep
+ * tegas (nggak ada kurva), tapi proporsinya ngikut benda nyata — makanya monitor
+ * kebaca sebagai monitor, bukan kubus yang ditempel gambar.
+ *
+ * Perabot ruang santai ada di relax.tsx. */
 
-const C = {
+export const C = {
   panel: "#d8d4cc",
   metal: "#97a0aa",
   darkMetal: "#5b646e",
@@ -90,7 +89,6 @@ function Monitor({
   const bezel = 0.045;
   return (
     <group>
-      {/* dudukan */}
       <mesh position={[0, 0.02, -0.02]} castShadow>
         <boxGeometry args={[width * 0.45, 0.035, 0.24]} />
         <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.5} />
@@ -100,18 +98,16 @@ function Monitor({
         <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.5} />
       </mesh>
 
-      {/* panel, agak nunduk ke arah orang yang duduk */}
+      {/* panel agak nunduk ke arah orang yang duduk (layar hadap +z) */}
       <group position={[0, 0.34 + height / 2, 0]} rotation={[-0.08, 0, 0]}>
         <mesh castShadow>
           <boxGeometry args={[width, height, 0.045]} />
           <meshStandardMaterial color={C.plastic} roughness={0.65} />
         </mesh>
-        {/* layar, nempel di depan bezel */}
         <mesh position={[0, 0.012, 0.027]}>
           <planeGeometry args={[width - bezel * 2, height - bezel * 2 - 0.025]} />
           <Screen state={state} scroll={primary && state === "working"} />
         </mesh>
-        {/* lampu indikator */}
         <mesh position={[width / 2 - 0.06, -height / 2 + 0.025, 0.026]}>
           <boxGeometry args={[0.025, 0.012, 0.004]} />
           <meshBasicMaterial color={state === "idle" ? "#6b4a1a" : "#7de06b"} toneMapped={false} />
@@ -128,7 +124,6 @@ function Keyboard() {
         <boxGeometry args={[0.8, 0.028, 0.27]} />
         <meshStandardMaterial color={C.plasticMid} roughness={0.75} />
       </mesh>
-      {/* blok keycap, dibikin rata supaya kebaca sebagai tuts */}
       <mesh position={[0, 0.021, 0.01]}>
         <boxGeometry args={[0.74, 0.014, 0.21]} />
         <meshStandardMaterial color="#1f242b" roughness={0.9} />
@@ -141,16 +136,16 @@ function Keyboard() {
   );
 }
 
-function Mug() {
+export function Mug({ color = C.mug }: { color?: string }) {
   return (
     <group>
       <mesh castShadow>
         <boxGeometry args={[0.15, 0.17, 0.15]} />
-        <meshStandardMaterial color={C.mug} roughness={0.5} />
+        <meshStandardMaterial color={color} roughness={0.5} />
       </mesh>
       <mesh position={[0.095, 0.015, 0]}>
         <boxGeometry args={[0.045, 0.075, 0.035]} />
-        <meshStandardMaterial color={C.mug} roughness={0.5} />
+        <meshStandardMaterial color={color} roughness={0.5} />
       </mesh>
       <mesh position={[0, 0.079, 0]}>
         <boxGeometry args={[0.125, 0.012, 0.125]} />
@@ -180,11 +175,7 @@ function DeskLamp() {
 }
 
 function Chair({ x, z }: { x: number; z: number }) {
-  // Kaki bintang 5, dibikin dari box yang diputar.
-  const legs = useMemo(
-    () => [0, 1, 2, 3, 4].map((i) => (i / 5) * Math.PI * 2),
-    [],
-  );
+  const legs = useMemo(() => [0, 1, 2, 3, 4].map((i) => (i / 5) * Math.PI * 2), []);
   return (
     <group position={[x, 0, z]}>
       {legs.map((a, i) => (
@@ -207,7 +198,7 @@ function Chair({ x, z }: { x: number; z: number }) {
         <boxGeometry args={[0.58, 0.11, 0.56]} />
         <meshStandardMaterial color={C.chairFabric} roughness={0.9} />
       </mesh>
-      {/* sandaran ada di belakang orang yang duduk (sisi +z) */}
+      {/* sandaran di sisi +z (belakang orang yang duduk) */}
       <mesh position={[0, 0.85, 0.27]} rotation={[0.1, 0, 0]} castShadow>
         <boxGeometry args={[0.56, 0.64, 0.09]} />
         <meshStandardMaterial color={C.chairFabric} roughness={0.9} />
@@ -223,35 +214,25 @@ function Chair({ x, z }: { x: number; z: number }) {
 }
 
 /** Satu set kerja lengkap: meja, 2 monitor, keyboard, mouse, PC, lampu, mug. */
-export function Workstation({
-  deskIndex,
-  state,
-}: {
-  deskIndex: number;
-  state: AgentState;
-}) {
+export function Workstation({ deskIndex, state }: { deskIndex: number; state: AgentState }) {
   const d = DESKS[deskIndex];
   const wood = useMemo(() => woodTexture("#a97f4d"), []);
   const top = DESK.topY;
 
   return (
     <group position={[d.x, 0, d.z]}>
-      {/* permukaan meja */}
       <mesh position={[0, top - DESK.topT / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[DESK.w, DESK.topT, DESK.d]} />
         <meshStandardMaterial map={wood} roughness={0.7} />
       </mesh>
-      {/* panel samping kiri */}
       <mesh position={[-DESK.w / 2 + 0.06, 0.36, 0]} castShadow>
         <boxGeometry args={[0.07, 0.72, DESK.d * 0.85]} />
         <meshStandardMaterial color={C.panel} roughness={0.8} />
       </mesh>
-      {/* panel penutup belakang */}
       <mesh position={[0, 0.45, -DESK.d / 2 + 0.04]} castShadow>
         <boxGeometry args={[DESK.w * 0.92, 0.46, 0.05]} />
         <meshStandardMaterial color={C.panel} roughness={0.85} />
       </mesh>
-      {/* unit laci */}
       <group position={[DESK.w / 2 - 0.47, 0.34, 0.02]}>
         <mesh castShadow>
           <boxGeometry args={[0.78, 0.68, 0.95]} />
@@ -265,7 +246,6 @@ export function Workstation({
         ))}
       </group>
 
-      {/* PC tower di bawah meja */}
       <group position={[-DESK.w / 2 + 0.45, 0.32, -0.15]}>
         <mesh castShadow>
           <boxGeometry args={[0.26, 0.64, 0.58]} />
@@ -273,10 +253,7 @@ export function Workstation({
         </mesh>
         <mesh position={[0.135, 0.18, 0.1]}>
           <boxGeometry args={[0.012, 0.02, 0.02]} />
-          <meshBasicMaterial
-            color={state === "idle" ? "#2b3a4a" : "#6ab7ff"}
-            toneMapped={false}
-          />
+          <meshBasicMaterial color={state === "idle" ? "#2b3a4a" : "#6ab7ff"} toneMapped={false} />
         </mesh>
         <mesh position={[0.135, 0.02, 0.1]}>
           <boxGeometry args={[0.012, 0.055, 0.14]} />
@@ -284,7 +261,6 @@ export function Workstation({
         </mesh>
       </group>
 
-      {/* monitor utama + monitor kedua */}
       <group position={[-0.34, top, -0.26]}>
         <Monitor state={state} width={0.98} height={0.58} primary />
       </group>
@@ -318,74 +294,20 @@ export function Workstation({
 
 /* ------------------------------------------------------------------ */
 
-export function CoffeeBar() {
-  const wood = useMemo(() => woodTexture("#8d6239"), []);
-  const { x, z } = ZONES.coffee;
-  return (
-    <group position={[x + 0.2, 0, z - 1.9]}>
-      <mesh position={[0, 0.44, 0]} castShadow receiveShadow>
-        <boxGeometry args={[3.3, 0.88, 0.95]} />
-        <meshStandardMaterial color={C.panel} roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 0.92, 0]} castShadow>
-        <boxGeometry args={[3.5, 0.08, 1.05]} />
-        <meshStandardMaterial map={wood} roughness={0.6} />
-      </mesh>
-
-      {/* mesin kopi */}
-      <group position={[-1.05, 1.22, -0.05]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.52, 0.52, 0.42]} />
-          <meshStandardMaterial color={C.plastic} roughness={0.5} metalness={0.3} />
-        </mesh>
-        <mesh position={[0, 0.29, 0]}>
-          <boxGeometry args={[0.54, 0.06, 0.44]} />
-          <meshStandardMaterial color={C.metal} roughness={0.4} metalness={0.6} />
-        </mesh>
-        <mesh position={[0, -0.1, 0.22]}>
-          <boxGeometry args={[0.16, 0.14, 0.04]} />
-          <meshStandardMaterial color={C.darkMetal} roughness={0.4} metalness={0.6} />
-        </mesh>
-        <mesh position={[0.17, 0.12, 0.215]}>
-          <boxGeometry args={[0.05, 0.05, 0.01]} />
-          <meshBasicMaterial color="#7de06b" toneMapped={false} />
-        </mesh>
-      </group>
-
-      {/* galon air */}
-      <group position={[1.15, 1.22, -0.05]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.34, 0.52, 0.34]} />
-          <meshStandardMaterial color="#9fc8d8" roughness={0.25} transparent opacity={0.75} />
-        </mesh>
-      </group>
-
-      {/* cangkir kebalik */}
-      {[-0.2, 0.02, 0.24].map((dx) => (
-        <mesh key={dx} position={[dx, 1.04, 0.12]} castShadow>
-          <boxGeometry args={[0.13, 0.15, 0.13]} />
-          <meshStandardMaterial color={C.white} roughness={0.5} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
 export function Whiteboard() {
   const board = useMemo(() => boardTexture(), []);
-  const { z } = ZONES.whiteboard;
   return (
-    <group position={[0.14, 0, z]}>
+    <group position={[0.14, 0, WHITEBOARD.z]}>
       <mesh position={[0, 2.15, 0]} castShadow>
-        <boxGeometry args={[0.08, 1.74, 3.7]} />
+        <boxGeometry args={[0.08, 1.74, WHITEBOARD.zSpan]} />
         <meshStandardMaterial color={C.metal} roughness={0.4} metalness={0.5} />
       </mesh>
       <mesh position={[0.05, 2.15, 0]}>
-        <boxGeometry args={[0.02, 1.58, 3.54]} />
+        <boxGeometry args={[0.02, 1.58, WHITEBOARD.zSpan - 0.16]} />
         <meshStandardMaterial map={board} roughness={0.25} />
       </mesh>
       <mesh position={[0.1, 1.22, 0]} castShadow>
-        <boxGeometry args={[0.14, 0.05, 3.5]} />
+        <boxGeometry args={[0.14, 0.05, WHITEBOARD.zSpan - 0.2]} />
         <meshStandardMaterial color={C.metal} roughness={0.4} metalness={0.5} />
       </mesh>
       {[
@@ -404,9 +326,8 @@ export function Whiteboard() {
 
 /** Zona "ketahan/error": matras lantai + papan peringatan. */
 export function BugZone() {
-  const { x, z } = ZONES.bug;
   return (
-    <group position={[x, 0, z]}>
+    <group position={[BUGZONE.x, 0, BUGZONE.z]}>
       <mesh position={[0, 0.012, 0]} receiveShadow>
         <boxGeometry args={[3.4, 0.024, 2.8]} />
         <meshStandardMaterial color="#7a2b24" roughness={0.95} />
@@ -437,252 +358,7 @@ export function BugZone() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* Lounge: sofa, TV, konsol. Tempat agent yang nggak ada kerjaan.       */
-/* ------------------------------------------------------------------ */
-
-const SOFA = "#4a5668";
-const SOFA_DARK = "#3b4553";
-
-/** Layar TV. Nyala cuma kalau ada yang beneran main — kalau lounge kosong,
- * TV-nya mati, sama kayak layar monitor yang padam waktu agent idle. */
-function TvScreen({ on }: { on: boolean }) {
-  const tex = useMemo(() => gameTexture(), []);
-  if (!on) {
-    return <meshStandardMaterial color="#14181d" roughness={0.25} metalness={0.2} />;
-  }
-  return <meshBasicMaterial map={tex} toneMapped={false} />;
-}
-
-export function Lounge({ tvOn }: { tvOn: boolean }) {
-  const wood = useMemo(() => woodTexture("#7d5a38"), []);
-  const runner = useMemo(() => runnerTexture(), []);
-
-  return (
-    <group>
-      {/* karpet lounge */}
-      <mesh position={[LOUNGE.x, 0.007, (LOUNGE.tvZ + LOUNGE.sofaZ) / 2]} receiveShadow>
-        <boxGeometry args={[4.6, 0.014, 2.6]} />
-        <meshStandardMaterial map={runner} roughness={0.95} />
-      </mesh>
-
-      {/* --- sofa, menghadap -z ke arah TV --- */}
-      <group position={[LOUNGE.x, 0, LOUNGE.sofaZ]}>
-        <mesh position={[0, 0.23, 0]} castShadow receiveShadow>
-          <boxGeometry args={[3.1, 0.46, 1.02]} />
-          <meshStandardMaterial color={SOFA_DARK} roughness={0.95} />
-        </mesh>
-        {SOFA_SEATS.map((dx) => (
-          <mesh key={dx} position={[dx, 0.54, -0.04]} castShadow>
-            <boxGeometry args={[0.94, 0.17, 0.88]} />
-            <meshStandardMaterial color={SOFA} roughness={0.95} />
-          </mesh>
-        ))}
-        {/* sandaran di sisi +z (belakang orang yang duduk) */}
-        <mesh position={[0, 0.74, 0.38]} castShadow>
-          <boxGeometry args={[3.1, 0.76, 0.26]} />
-          <meshStandardMaterial color={SOFA_DARK} roughness={0.95} />
-        </mesh>
-        {SOFA_SEATS.map((dx) => (
-          <mesh key={`b${dx}`} position={[dx, 0.8, 0.2]} castShadow>
-            <boxGeometry args={[0.9, 0.52, 0.15]} />
-            <meshStandardMaterial color={SOFA} roughness={0.95} />
-          </mesh>
-        ))}
-        {[-1.68, 1.68].map((ax) => (
-          <mesh key={ax} position={[ax, 0.6, 0.06]} castShadow>
-            <boxGeometry args={[0.26, 0.56, 1.02]} />
-            <meshStandardMaterial color={SOFA_DARK} roughness={0.95} />
-          </mesh>
-        ))}
-        {/* bantal kecil */}
-        <mesh position={[-1.25, 0.68, 0.14]} rotation={[0, 0, 0.25]} castShadow>
-          <boxGeometry args={[0.38, 0.36, 0.12]} />
-          <meshStandardMaterial color="#c0523d" roughness={0.95} />
-        </mesh>
-      </group>
-
-      {/* --- meja kopi --- */}
-      <group position={[LOUNGE.x, 0, (LOUNGE.tvZ + LOUNGE.sofaZ) / 2 + 0.25]}>
-        <mesh position={[0, 0.4, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.5, 0.07, 0.72]} />
-          <meshStandardMaterial map={wood} roughness={0.6} />
-        </mesh>
-        {[
-          [-0.65, -0.28],
-          [0.65, -0.28],
-          [-0.65, 0.28],
-          [0.65, 0.28],
-        ].map(([lx, lz]) => (
-          <mesh key={`${lx}-${lz}`} position={[lx, 0.19, lz]} castShadow>
-            <boxGeometry args={[0.07, 0.38, 0.07]} />
-            <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.4} />
-          </mesh>
-        ))}
-        {/* cangkir + stik nganggur */}
-        <mesh position={[-0.5, 0.52, 0.06]} castShadow>
-          <boxGeometry args={[0.13, 0.15, 0.13]} />
-          <meshStandardMaterial color={C.white} roughness={0.5} />
-        </mesh>
-        <mesh position={[0.42, 0.46, 0.02]} rotation={[0, 0.4, 0]} castShadow>
-          <boxGeometry args={[0.26, 0.07, 0.17]} />
-          <meshStandardMaterial color="#20242b" roughness={0.6} />
-        </mesh>
-      </group>
-
-      {/* --- rak TV + TV + konsol --- */}
-      <group position={[LOUNGE.x, 0, LOUNGE.tvZ]}>
-        <mesh position={[0, 0.23, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.5, 0.46, 0.52]} />
-          <meshStandardMaterial map={wood} roughness={0.7} />
-        </mesh>
-        {[-0.6, 0.6].map((dx) => (
-          <mesh key={dx} position={[dx, 0.23, 0.265]}>
-            <boxGeometry args={[1.1, 0.03, 0.02]} />
-            <meshStandardMaterial color="#5f452e" roughness={0.8} />
-          </mesh>
-        ))}
-
-        {/* konsol PS: badan tipis + lampu status */}
-        <group position={[-0.7, 0.51, 0.02]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.52, 0.1, 0.3]} />
-            <meshStandardMaterial color="#1b1f26" roughness={0.4} metalness={0.3} />
-          </mesh>
-          <mesh position={[0, 0.056, 0]}>
-            <boxGeometry args={[0.46, 0.012, 0.26]} />
-            <meshStandardMaterial color="#2c323c" roughness={0.3} metalness={0.4} />
-          </mesh>
-          <mesh position={[0, 0.0, 0.152]}>
-            <boxGeometry args={[0.2, 0.014, 0.004]} />
-            <meshBasicMaterial color={tvOn ? "#6ab7ff" : "#2b3a4a"} toneMapped={false} />
-          </mesh>
-        </group>
-
-        {/* stik kedua nganggur di rak */}
-        <mesh position={[0.72, 0.5, 0.05]} rotation={[0, -0.3, 0]} castShadow>
-          <boxGeometry args={[0.26, 0.07, 0.17]} />
-          <meshStandardMaterial color="#20242b" roughness={0.6} />
-        </mesh>
-
-        {/* soundbar */}
-        <mesh position={[0, 0.52, -0.16]} castShadow>
-          <boxGeometry args={[1.5, 0.1, 0.12]} />
-          <meshStandardMaterial color="#23272e" roughness={0.7} />
-        </mesh>
-
-        {/* TV, layarnya menghadap +z ke arah sofa */}
-        <group position={[0, 1.24, -0.04]}>
-          <mesh position={[0, -0.52, 0.04]} castShadow>
-            <boxGeometry args={[0.5, 0.05, 0.22]} />
-            <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.5} />
-          </mesh>
-          <mesh position={[0, -0.36, 0.04]} castShadow>
-            <boxGeometry args={[0.09, 0.3, 0.07]} />
-            <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.5} />
-          </mesh>
-          <mesh castShadow>
-            <boxGeometry args={[2.1, 1.2, 0.07]} />
-            <meshStandardMaterial color="#15181d" roughness={0.55} />
-          </mesh>
-          <mesh position={[0, 0.015, 0.042]}>
-            <planeGeometry args={[1.98, 1.1]} />
-            <TvScreen on={tvOn} />
-          </mesh>
-        </group>
-      </group>
-    </group>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Area tidur: buat agent yang udah lama banget nggak ngasih kabar.     */
-/* ------------------------------------------------------------------ */
-
-function Bed({ x }: { x: number }) {
-  const wood = useMemo(() => woodTexture("#86603a"), []);
-  const half = BED.len / 2;
-  return (
-    <group position={[x, 0, BED.z]}>
-      {/* rangka */}
-      <mesh position={[0, 0.22, 0]} castShadow receiveShadow>
-        <boxGeometry args={[BED.w, 0.44, BED.len]} />
-        <meshStandardMaterial map={wood} roughness={0.75} />
-      </mesh>
-      {/* kasur */}
-      <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
-        <boxGeometry args={[BED.w - 0.09, 0.22, BED.len - 0.12]} />
-        <meshStandardMaterial color="#e9e5db" roughness={0.95} />
-      </mesh>
-      {/* bantal di sisi kepala (+z) */}
-      <mesh position={[0, 0.69, half - 0.42]} castShadow>
-        <boxGeometry args={[0.78, 0.15, 0.44]} />
-        <meshStandardMaterial color="#f5f2ea" roughness={0.95} />
-      </mesh>
-      {/* selimut nutupin separuh bawah */}
-      <mesh position={[0, 0.68, -0.3]} castShadow>
-        <boxGeometry args={[BED.w - 0.05, 0.11, 1.2]} />
-        <meshStandardMaterial color="#44607f" roughness={0.95} />
-      </mesh>
-      <mesh position={[0, 0.72, 0.31]}>
-        <boxGeometry args={[BED.w - 0.05, 0.05, 0.14]} />
-        <meshStandardMaterial color="#5a7897" roughness={0.95} />
-      </mesh>
-      {/* kepala & kaki ranjang */}
-      <mesh position={[0, 0.58, half + 0.05]} castShadow>
-        <boxGeometry args={[BED.w, 0.78, 0.1]} />
-        <meshStandardMaterial map={wood} roughness={0.75} />
-      </mesh>
-      <mesh position={[0, 0.36, -half - 0.05]} castShadow>
-        <boxGeometry args={[BED.w, 0.34, 0.1]} />
-        <meshStandardMaterial map={wood} roughness={0.75} />
-      </mesh>
-    </group>
-  );
-}
-
-function Nightstand({ x }: { x: number }) {
-  const wood = useMemo(() => woodTexture("#86603a"), []);
-  return (
-    <group position={[x, 0, BED.z + BED.len / 2 - 0.35]}>
-      <mesh position={[0, 0.27, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.52, 0.54, 0.46]} />
-        <meshStandardMaterial map={wood} roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 0.3, 0.235]}>
-        <boxGeometry args={[0.34, 0.03, 0.02]} />
-        <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.5} />
-      </mesh>
-      {/* lampu tidur, redup */}
-      <mesh position={[0, 0.6, 0]} castShadow>
-        <boxGeometry args={[0.1, 0.18, 0.1]} />
-        <meshStandardMaterial color={C.darkMetal} roughness={0.5} metalness={0.5} />
-      </mesh>
-      <mesh position={[0, 0.76, 0]} castShadow>
-        <boxGeometry args={[0.28, 0.2, 0.28]} />
-        <meshStandardMaterial color="#e8cf9a" roughness={0.6} emissive="#4a3a1c" />
-      </mesh>
-    </group>
-  );
-}
-
-export function NapArea() {
-  return (
-    <group>
-      {BED_X.map((x) => (
-        <Bed key={x} x={x} />
-      ))}
-      {[
-        (BED_X[0] + BED_X[1]) / 2,
-        (BED_X[1] + BED_X[2]) / 2,
-      ].map((x) => (
-        <Nightstand key={x} x={x} />
-      ))}
-    </group>
-  );
-}
-
-function Plant({ x, z, big }: { x: number; z: number; big: boolean }) {
+export function Plant({ x, z, big }: { x: number; z: number; big: boolean }) {
   const s = big ? 1 : 0.72;
   const blobs = useMemo(
     () => [
@@ -722,16 +398,6 @@ function Plant({ x, z, big }: { x: number; z: number; big: boolean }) {
   );
 }
 
-export function Plants() {
-  return (
-    <>
-      {PLANTS.map((p, i) => (
-        <Plant key={i} {...p} />
-      ))}
-    </>
-  );
-}
-
 export function CeilingLights({ height }: { height: number }) {
   return (
     <>
@@ -751,7 +417,7 @@ export function CeilingLights({ height }: { height: number }) {
   );
 }
 
-/** Rak dokumen di dinding belakang — ngisi ruang kosong biar kantornya terasa dipakai. */
+/** Rak dokumen di dinding belakang ruang kerja. */
 export function Shelf() {
   const wood = useMemo(() => woodTexture("#8d6239"), []);
   const files = useMemo(
@@ -764,7 +430,7 @@ export function Shelf() {
     [],
   );
   return (
-    <group position={[13, 0, 0.55]}>
+    <group position={[SHELF.x, 0, 0.55]}>
       <mesh position={[0, 0.95, 0]} castShadow receiveShadow>
         <boxGeometry args={[3.4, 1.9, 0.42]} />
         <meshStandardMaterial map={wood} roughness={0.75} />
