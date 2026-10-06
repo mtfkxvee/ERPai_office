@@ -1,0 +1,88 @@
+{
+  "_comment": [
+    "Cara 2: hook http langsung, tanpa install skrip apa pun.",
+    "",
+    "Claude Code nge-POST payload hook-nya langsung ke endpoint ERPNext. Nggak",
+    "ada Node, nggak ada file yang perlu disalin ke tiap mesin.",
+    "",
+    "KEKURANGANNYA, dan ini bukan hal kecil: hook http TIDAK bisa async. Tiap",
+    "tool call nunggu respons ERPNext dulu. Lewat Cloudflare itu biasanya",
+    "200-400 ms, dan itu kena ke SETIAP Read, Edit, dan Bash. Pakai ini kalau",
+    "nggak bisa naruh skrip di mesinnya; kalau bisa, pakai settings.command.json.",
+    "",
+    "allowedEnvVars itu wajib — tanpa itu, $XSHA_OFFICE_TOKEN diganti string",
+    "kosong dan semua request ketolak 401 tanpa pesan apa-apa.",
+    "",
+    "Ganti nama agent di query string ?agent= sesuai selera. Kalau dihapus,",
+    "server nebak dari nama folder kerja (jadi 'cc/nama-project')."
+  ],
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "timeout": 5,
+            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "timeout": 5,
+            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "http",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "timeout": 5,
+            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "timeout": 5,
+            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "timeout": 5,
+            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
+          }
+        ]
+      }
+    ]
+  }
+}

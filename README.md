@@ -48,6 +48,11 @@ curl -X POST https://<site>/api/method/xsha_office.api.report \
 Agent yang belum kedaftar otomatis dibikin dan dapet meja kosong — nggak perlu
 setup manual dulu.
 
+Baris `AI Agent Activity` cuma ditulis kalau pasangan (state, tool) berubah,
+atau kalau dikirim `log=1`. State terakhir dan event realtime tetep dikirim tiap
+kali. Ini biar tabelnya nggak meledak gara-gara laporan berulang yang isinya
+sama.
+
 ### State yang valid
 
 | State      | Karakternya ngapain                       |
@@ -99,8 +104,11 @@ dari sekatnya.
 ## Verifikasi tanpa browser
 
 ```bash
-cd frontend && npm run verify
+cd frontend && npm run verify   # geometri pose (38 assert)
+python tests/test_hook_map.py   # pemetaan hook (33 assert)
 ```
+
+Dua-duanya jalan tanpa browser dan tanpa bench Frappe.
 
 Bangun hierarki transform karakter pakai three.js headless, hitung posisi sendi
 di world-space, lalu cocokin sama posisi perabot: apakah mukanya menghadap
@@ -118,19 +126,29 @@ arah hadap, atau tata letak.
 
 ### Hook Claude Code
 
-Pola yang dipakai proyek sejenis (`agent-virtual-office`, `pixel-agents`,
-`claude-ville`): map lifecycle hook ke state.
+Udah jadi, ada di [`hooks/`](hooks/) — baca [`hooks/README.md`](hooks/README.md)
+buat cara pasangnya.
 
-| Hook               | State      |
-| ------------------ | ---------- |
-| `UserPromptSubmit` | `thinking` |
-| `PreToolUse`       | `working`  |
-| `Stop`             | `idle`     |
-| `PermissionDenied` | `blocked`  |
+Endpoint `xsha_office.api.hook` nerima payload hook Claude Code apa adanya dan
+memetakannya di server, jadi kalau pemetaannya diubah nanti, mesin klien nggak
+perlu disentuh. Dua cara pasang: hook `command` + `async: true` (disarankan,
+nggak nahan tool call) atau hook `http` langsung (tanpa install, tapi nahan tiap
+tool call).
+
+Pemetaannya pakai nama event asli dari dokumentasi Claude Code — `PermissionDenied`,
+`PostToolUseFailure`, dan `StopFailure` itu event yang beneran ada, jadi "ketahan"
+dan "error" nggak perlu ditebak-tebak.
 
 ## Arsitektur
 
 ```
+hooks/                       jembatan Claude Code -> office
+  office-report.mjs          penerus payload hook, nol dependency
+  settings.command.json      contoh config (disarankan, async)
+  settings.http.json         contoh config tanpa install skrip
+tests/
+  test_hook_map.py           tes pemetaan event->state, frappe dipalsukan
+
 frontend/                    source Vite (React Three Fiber)
   src/layout.ts              bentuk dua ruangan, zona, rute lewat pintu
   src/poses.ts               rig karakter + matematika pose (fungsi murni)

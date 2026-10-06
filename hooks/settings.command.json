@@ -1,0 +1,132 @@
+{
+  "_comment": [
+    "Cara 1 (disarankan): hook command + async.",
+    "Gabungkan blok 'hooks' ini ke ~/.claude/settings.json kamu.",
+    "Ganti /ABSOLUTE/PATH/KE jadi lokasi office-report.mjs yang sebenarnya.",
+    "",
+    "Kenapa async: true — hook ini jalan di latar belakang dan nggak nahan tool",
+    "call sama sekali. Tanpa itu, tiap Read/Edit/Bash nunggu respons ERPNext",
+    "dulu (lewat Cloudflare bisa 200-400 ms), dan Claude Code jadi kerasa berat.",
+    "",
+    "SessionEnd punya anggaran total cuma 1.5 detik untuk semua hook-nya, jadi",
+    "async di situ bukan optimasi — itu syarat.",
+    "",
+    "Kredensial JANGAN ditaruh di sini. Simpan di ~/.xsha-office.json",
+    "(chmod 600) atau sebagai env var. File settings.json gampang ke-commit."
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PermissionDenied": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /ABSOLUTE/PATH/KE/office-report.mjs",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
