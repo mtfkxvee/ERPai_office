@@ -1,10 +1,13 @@
-import { displayPose } from "./store";
+import { displayPose, idleText } from "./store";
 import type { Agent, Pose } from "./types";
 
 const DOT: Record<Pose, { c: string; label: string }> = {
   idle: { c: "#c3c8d0", label: "idle" },
   gaming: { c: "#b388ff", label: "main PS" },
   sleeping: { c: "#7a8699", label: "tidur" },
+  lounging: { c: "#9aa7bd", label: "leyeh-leyeh" },
+  reading: { c: "#a3b58c", label: "baca" },
+  pingpong: { c: "#8fc4d6", label: "ping pong" },
   thinking: { c: "#ffd166", label: "mikir" },
   working: { c: "#8ee07a", label: "kerja" },
   blocked: { c: "#f0932b", label: "ketahan" },
@@ -47,12 +50,16 @@ export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
         {agents.map((a) => {
           const p = displayPose(a, now);
           const d = DOT[p];
+          const idle = idleText(a, now);
           return (
             <div key={a.agent} style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
               <span style={{ color: d.c }}>●</span>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
                 {a.agent}
               </span>
+              {/* Angka ini yang jadi ukuran keaktifan, bukan posisi karakternya
+                  — tempat santainya sengaja disebar biar nggak suram. */}
+              {idle && <span style={{ color: "#6f7885" }}>{idle}</span>}
               <span style={{ color: d.c }}>{d.label}</span>
             </div>
           );
@@ -75,7 +82,7 @@ export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
         <br />
         meja = kerja · whiteboard = mikir · matras merah = ketahan
         <br />
-        nganggur: pantry &lt;45s · lounge PS &lt;4m · kasur &gt;4m
+        nganggur &gt;4 menit disebar ke tempat santai — lamanya ada di label
       </div>
     </>
   );

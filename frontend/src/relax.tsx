@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import {
   BAR,
   BEANBAGS,
+  BEANBAG_SPOTS,
   BED,
   BED_X,
   BOOTH,
@@ -406,13 +407,10 @@ export function NapPods() {
 /* ================================================================== */
 
 export function BeanBags({ x, z }: { x: number; z: number }) {
+  // Posisi & putarannya dari layout.ts, sumber yang sama dengan yang dipakai
+  // buat menaruh karakter. Jangan ditulis ulang di sini.
   const bags = useMemo(
-    () => [
-      { dx: -1.15, dz: -0.75, r: 0.3, c: FABRIC[0] },
-      { dx: 1.1, dz: -0.6, r: -0.5, c: FABRIC[1] },
-      { dx: -0.95, dz: 0.95, r: 0.8, c: FABRIC[2] },
-      { dx: 1.2, dz: 1.0, r: -0.2, c: FABRIC[3] },
-    ],
+    () => BEANBAG_SPOTS.map((b) => ({ ...b, c: FABRIC[b.c % FABRIC.length] })),
     [],
   );
   return (

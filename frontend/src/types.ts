@@ -16,7 +16,26 @@ export const AGENT_STATES: AgentState[] = [
  * `gaming` dan `sleeping` bukan state baru yang bisa dilaporin agent — dua-duanya
  * dihitung dari lamanya `idle`. Jadi nggak ada informasi yang dikarang: posisi
  * karakter nunjukin berapa lama dia nggak ngasih kabar. */
-export type Pose = AgentState | "gaming" | "sleeping";
+export type Pose =
+  | AgentState
+  | "gaming"
+  | "sleeping"
+  | "lounging"
+  | "reading"
+  | "pingpong";
+
+/** Pose santai buat agent yang lama nggak ngasih kabar.
+ *
+ * Dipilih dari nama agent (stabil, nggak loncat-loncat tiap render) semata-mata
+ * biar ruangannya nggak kelihatan kayak kamar mayat. Pose mana yang kena NGGAK
+ * berarti apa-apa — yang berarti itu angka di labelnya. */
+export const LEISURE_POSES: Pose[] = [
+  "sleeping",
+  "gaming",
+  "lounging",
+  "reading",
+  "pingpong",
+];
 
 export type Agent = {
   agent: string;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Agent, AgentState, OfficeEvent, Pose } from "./types";
+import { LEISURE_POSES, type Agent, type AgentState, type OfficeEvent, type Pose } from "./types";
 
 /** Store mini, tanpa dependency. Cuma Map + listener. */
 
@@ -69,15 +69,46 @@ export function effectiveState(a: Agent, now: number): AgentState {
 const IDLE_PANTRY_MS = 45 * 1000;
 const IDLE_LOUNGE_MS = 4 * 60 * 1000;
 
+/** Hash nama agent -> angka. Dipakai supaya pilihan pose santai STABIL per
+ * agent: kalau diacak tiap render, karakternya bakal loncat-loncat. */
+function hashName(s: string): number {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 /** Pose yang dipakai buat nentuin posisi & animasi karakter. */
 export function displayPose(a: Agent, now: number): Pose {
   const state = effectiveState(a, now);
   if (state !== "idle") return state;
 
-  const idleFor = now - a.seen;
-  if (idleFor < IDLE_PANTRY_MS) return "idle";
-  if (idleFor < IDLE_LOUNGE_MS) return "gaming";
-  return "sleeping";
+  const idle = now - a.seen;
+  if (idle < IDLE_PANTRY_MS) return "idle";
+  if (idle < IDLE_LOUNGE_MS) return "gaming";
+
+  // Nganggur lama: disebar ke berbagai tempat santai, bukan numpuk semua di
+  // kasur. Pilihannya dari nama agent, jadi tetap sama tiap kali dirender.
+  //
+  // CATATAN PENTING: pose mana yang kena di sini NGGAK berarti apa-apa — ini
+  // murni biar ruangannya nggak kelihatan kayak kamar mayat. Informasi yang
+  // sebenarnya (sudah berapa lama nggak ada kabar) pindah ke label, lihat
+  // idleText() di bawah. Jangan baca "lagi main PS" sebagai "baru nganggur".
+  return LEISURE_POSES[hashName(a.agent) % LEISURE_POSES.length];
+}
+
+/** Berapa lama agent ini nggak ngasih kabar, dalam bahasa manusia.
+ *
+ * Ini yang jadi sumber kebenaran soal keaktifan, bukan posisi karakternya. */
+export function idleText(a: Agent, now: number): string | null {
+  const state = effectiveState(a, now);
+  if (state !== "idle") return null;
+
+  const s = Math.max(0, Math.floor((now - a.seen) / 1000));
+  if (s < 45) return null; // masih di pantry, belum perlu angka
+  if (s < 3600) return `${Math.floor(s / 60)} mnt`;
+  if (s < 86400) return `${Math.floor(s / 3600)} jam`;
+  const d = Math.floor(s / 86400);
+  return d > 900 ? "belum pernah" : `${d} hari`;
 }
 
 export function colorOf(a: Agent) {

@@ -130,7 +130,7 @@ export const SOFA_SEATS = [-0.88, 0, 0.88];
 export function psSeat(deskIndex: number) {
   const i = ((deskIndex % SOFA_SEATS.length) + SOFA_SEATS.length) % SOFA_SEATS.length;
   // Menghadap +x ke arah TV.
-  return { x: LOUNGE.sofaX, z: LOUNGE.z + SOFA_SEATS[i], rotY: -Math.PI / 2 };
+  return { x: LOUNGE.sofaX, z: LOUNGE.z + SOFA_SEATS[i], rotY: -Math.PI / 2, seatY: SEAT_Y.sofa };
 }
 
 /** Nap pod: kepala di sisi +z (nempel dinding depan). */
@@ -148,6 +148,52 @@ export const BEANBAGS = { x: 34.8, z: 12 };
 export const PINGPONG = { x: 36.2, z: 17.3 };
 export const BOOTH = { x: 25.1, z: 12.2 };
 export const LIBRARY = { x: 25.3, z: 7 };
+
+/** Bean bag: posisi, putaran, dan warnanya.
+ *
+ * Dipakai BARENG oleh relax.tsx (buat menggambar) dan beanbagSpot() (buat
+ * menaruh karakter). Kalau dua file ini punya angkanya masing-masing, salah
+ * satunya pasti melenceng cepat atau lambat — dan karakternya duduk di udara
+ * atau membelakangi sandaran tanpa ada yang sadar. */
+export const BEANBAG_SPOTS = [
+  { dx: -1.15, dz: -0.75, r: 0.3, c: 0 },
+  { dx: 1.1, dz: -0.6, r: -0.5, c: 1 },
+  { dx: -0.95, dz: 0.95, r: 0.8, c: 2 },
+  { dx: 1.2, dz: 1.0, r: -0.2, c: 3 },
+];
+
+/** Tinggi dudukan tiap tempat santai. Dipakai buat nurunin badan karakter pas
+ * ke permukaannya. */
+export const SEAT_Y = {
+  sofa: 0.625,
+  beanbag: 0.42,
+  armchair: 0.64,
+};
+
+export function beanbagSpot(i: number) {
+  const s = BEANBAG_SPOTS[((i % BEANBAG_SPOTS.length) + BEANBAG_SPOTS.length) % BEANBAG_SPOTS.length];
+  return {
+    x: BEANBAGS.x + s.dx,
+    z: BEANBAGS.z + s.dz,
+    // Ikut putaran bean bag-nya. Sandaran ada di sisi +z lokal, dan karakter
+    // menghadap -z pada rotY=0 — jadi rotY = putaran bag-nya, bukan nilai tetap.
+    rotY: s.r,
+    seatY: SEAT_Y.beanbag,
+  };
+}
+
+/** Kursi baca di sudut perpustakaan. Kursinya digambar menghadap +x. */
+export function readingSpot() {
+  return { x: LIBRARY.x + 0.75, z: LIBRARY.z - 0.35, rotY: -Math.PI / 2, seatY: SEAT_Y.armchair };
+}
+
+/** Dua ujung meja ping pong, saling berhadapan. */
+export function pingpongSpot(i: number) {
+  const far = i % 2 === 1;
+  return far
+    ? { x: PINGPONG.x, z: PINGPONG.z + 2.1, rotY: 0 }
+    : { x: PINGPONG.x, z: PINGPONG.z - 2.1, rotY: Math.PI };
+}
 
 /** Lampu gantung ruang santai — hangat, beda dari panel putih ruang kerja. */
 export const PENDANTS: { x: number; z: number }[] = [
@@ -177,6 +223,12 @@ export function targetFor(pose: Pose, deskIndex: number) {
       return psSeat(deskIndex);
     case "sleeping":
       return bedSpot(deskIndex);
+    case "lounging":
+      return beanbagSpot(deskIndex);
+    case "reading":
+      return readingSpot();
+    case "pingpong":
+      return pingpongSpot(deskIndex);
     case "thinking":
       return ZONES.whiteboard;
     case "blocked":
@@ -197,10 +249,15 @@ export function postureFor(pose: Pose): Posture {
     case "done":
       return "desk";
     case "gaming":
+    case "lounging":
+    case "reading":
+      // Sama-sama duduk; tinggi dudukannya yang beda, diambil dari seatY
+      // pada target masing-masing.
       return "sofa";
     case "sleeping":
       return "bed";
     default:
+      // pingpong, idle, thinking, blocked, error -> berdiri
       return "stand";
   }
 }

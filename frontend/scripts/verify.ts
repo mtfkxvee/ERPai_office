@@ -15,6 +15,8 @@
 
 import * as THREE from "three";
 import {
+  BEANBAG_SPOTS,
+  beanbagSpot,
   BED,
   bedSpot,
   CHAIR,
@@ -26,16 +28,21 @@ import {
   DOOR,
   LOUNGE,
   PARTITION,
+  PINGPONG,
+  pingpongSpot,
   postureFor,
   psSeat,
+  readingSpot,
   RELAX_X0,
   ROOM,
   routeTo,
+  SEAT_Y,
   targetFor,
   WHITEBOARD,
   ZONES,
 } from "../src/layout.ts";
 import { DESK_SEAT, facingFor, poseJoints, RIG } from "../src/poses.ts";
+import { LEISURE_POSES } from "../src/types.ts";
 
 /* ---------------------------------------------------------------- */
 /* Rig: hierarki yang sama persis dengan JSX di AgentChar.tsx        */
@@ -374,6 +381,70 @@ console.log("\nrute antar ruangan");
 
   const sameRoom = routeTo(5, 5, chairPos(3));
   check("dalam satu ruangan tanpa mampir", sameRoom.length === 1);
+}
+
+/* ---- 7b. tempat santai ------------------------------------------ */
+console.log("\ntempat santai (buat agent yang lama nggak ada kabar)");
+{
+  // Tinggi dudukan harus pas sama perabotnya, kalau nggak karakternya ngambang
+  // atau nyusup. Angka perabot diambil dari relax.tsx.
+  check("sofa: dudukan 0.54 + tebal 0.17/2 = 0.625", SEAT_Y.sofa, 0.54 + 0.17 / 2);
+  check("kursi baca: dudukan 0.56 + tebal 0.16/2 = 0.64", SEAT_Y.armchair, 0.56 + 0.16 / 2);
+  check(
+    "bean bag: di antara permukaan depan (0.34) dan sandaran (0.57)",
+    SEAT_Y.beanbag > 0.34 && SEAT_Y.beanbag < 0.57,
+    `seatY=${SEAT_Y.beanbag}`,
+  );
+
+  // Karakter harus menghadap SEARAH bean bag-nya, bukan membelakangi sandaran.
+  let hadap = true;
+  for (let i = 0; i < BEANBAG_SPOTS.length; i++) {
+    if (Math.abs(beanbagSpot(i).rotY - BEANBAG_SPOTS[i].r) > 1e-9) hadap = false;
+  }
+  check("bean bag: putaran karakter ikut putaran bag-nya", hadap);
+
+  // Semua titik santai harus di dalam ruang santai dan di dalam dinding.
+  let didalam = true;
+  let det = "";
+  const titik: [string, { x: number; z: number }][] = [
+    ...BEANBAG_SPOTS.map((_, i) => [`beanbag${i}`, beanbagSpot(i)] as [string, { x: number; z: number }]),
+    ["kursi baca", readingSpot()],
+    ["pingpong0", pingpongSpot(0)],
+    ["pingpong1", pingpongSpot(1)],
+  ];
+  for (const [nama, p] of titik) {
+    if (p.x < RELAX_X0 + 0.4 || p.x > ROOM.w - 0.4) {
+      didalam = false;
+      det = `${nama} x=${p.x.toFixed(2)} di luar ruang santai`;
+    }
+    if (p.z < 0.4 || p.z > ROOM.d - 0.4) {
+      didalam = false;
+      det = `${nama} z=${p.z.toFixed(2)} nembus dinding`;
+    }
+  }
+  check("semua titik santai di dalam ruang santai", didalam, det);
+
+  // Dua pemain ping pong harus saling berhadapan di sisi berlawanan meja.
+  const a = pingpongSpot(0);
+  const b = pingpongSpot(1);
+  check(
+    "ping pong: dua pemain berseberangan",
+    (a.z - PINGPONG.z) * (b.z - PINGPONG.z) < 0,
+    `z=${a.z} dan z=${b.z}, meja di z=${PINGPONG.z}`,
+  );
+
+  // Pose santai harus punya tujuan yang beda-beda, bukan numpuk satu titik.
+  const tujuan = new Set(
+    LEISURE_POSES.map((p, i) => {
+      const t = targetFor(p, i);
+      return `${t.x.toFixed(2)},${t.z.toFixed(2)}`;
+    }),
+  );
+  check(
+    "lima pose santai mendarat di lima titik berbeda",
+    tujuan.size,
+    LEISURE_POSES.length,
+  );
 }
 
 /* ---- 8. tata letak masuk ruangan -------------------------------- */

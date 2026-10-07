@@ -4,7 +4,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { BED, postureFor, routeTo, targetFor } from "./layout";
 import { facingFor, poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
-import { colorOf, displayPose } from "./store";
+import { colorOf, displayPose, idleText } from "./store";
 import type { Agent, Pose } from "./types";
 
 const SKIN = "#d9a06b";
@@ -17,6 +17,9 @@ const STATE_LABEL: Record<Pose, { text: string; color: string }> = {
   idle: { text: "idle", color: "#c3c8d0" },
   gaming: { text: "main PS", color: "#b388ff" },
   sleeping: { text: "tidur", color: "#7a8699" },
+  lounging: { text: "leyeh-leyeh", color: "#9aa7bd" },
+  reading: { text: "baca", color: "#a3b58c" },
+  pingpong: { text: "ping pong", color: "#8fc4d6" },
   thinking: { text: "mikir", color: "#ffd166" },
   working: { text: "kerja", color: "#8ee07a" },
   blocked: { text: "ketahan", color: "#f0932b" },
@@ -92,7 +95,9 @@ export function AgentChar({ agent }: { agent: Agent }) {
     }
 
     const posture = walking ? "stand" : postureFor(pose);
-    const { joints: want, shake } = poseJoints(pose, posture, walking, t, BED.matTop);
+    // Tinggi dudukan ikut tempatnya: sofa, bean bag, dan kursi baca beda-beda.
+    const seatY = (goal as { seatY?: number }).seatY;
+    const { joints: want, shake } = poseJoints(pose, posture, walking, t, BED.matTop, seatY);
 
     // Lerp ke pose tujuan — bangun dari kasur jadi mulus, bukan patah.
     const k = 1 - Math.exp(-9 * dt);
@@ -125,8 +130,10 @@ export function AgentChar({ agent }: { agent: Agent }) {
     if (pad.current) pad.current.visible = posture === "sofa";
   });
 
-  const pose = displayPose(agent, Date.now());
+  const now = Date.now();
+  const pose = displayPose(agent, now);
   const badge = STATE_LABEL[pose];
+  const idle = idleText(agent, now);
 
   const Arm = ({
     side,
@@ -213,6 +220,10 @@ export function AgentChar({ agent }: { agent: Agent }) {
             <div style={{ color: badge.color }}>
               {badge.text}
               {agent.tool && pose === "working" ? ` · ${agent.tool}` : ""}
+              {/* Lamanya nganggur ditempel di sini. Posisi karakter sengaja
+                  disebar biar ruangannya nggak suram, jadi ANGKA INI yang jadi
+                  sumber kebenaran soal keaktifan — bukan dia lagi di mana. */}
+              {idle ? ` · ${idle}` : ""}
             </div>
           </div>
         </Html>

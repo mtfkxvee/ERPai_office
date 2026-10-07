@@ -95,6 +95,9 @@ export function poseJoints(
   walking: boolean,
   t: number,
   matTop: number,
+  /** Tinggi permukaan dudukan. Sofa, bean bag, dan kursi baca beda-beda —
+   * kalau dipukul rata, karakternya ngambang atau nyusup ke perabotnya. */
+  seatY: number = SOFA_SEAT,
 ): { joints: Joints; shake: number } {
   const j: Joints = { ...ZERO_JOINTS };
   let shake = 0;
@@ -132,16 +135,37 @@ export function poseJoints(
   }
 
   if (posture === "sofa") {
-    // nyender, kaki agak nyelonjor, dua tangan megang stik
-    j.y = SOFA_SEAT - RIG.hipY;
-    j.recline = -0.14;
+    // Duduk di permukaan apa pun: sofa, bean bag, atau kursi baca.
+    j.y = seatY - RIG.hipY;
     j.hipL = j.hipR = FWD - 0.22;
     j.kneeL = -FWD + 0.46;
     j.kneeR = -FWD + 0.38;
-    j.shL = j.shR = 0.5;
-    j.elL = 1.24 + Math.sin(t * 11) * 0.05;
-    j.elR = 1.24 + Math.sin(t * 11 + 1.4) * 0.05;
-    j.headX = 0.07;
+
+    if (pose === "lounging") {
+      // bean bag: paling nyender, kaki paling nyelonjor, tangan di belakang
+      j.recline = -0.3;
+      j.hipL = j.hipR = FWD - 0.42;
+      j.kneeL = -FWD + 0.72;
+      j.kneeR = -FWD + 0.64;
+      j.shL = j.shR = -0.5;
+      j.elL = j.elR = 0.25;
+      j.headX = -0.12;
+      j.y += Math.sin(t * 1.4) * 0.012;
+    } else if (pose === "reading") {
+      // kursi baca: tegak, dua tangan megang buku di depan dada
+      j.recline = -0.06;
+      j.shL = j.shR = 0.62;
+      j.elL = j.elR = 1.05;
+      j.headX = 0.2;
+      j.y += Math.sin(t * 1.6) * 0.008;
+    } else {
+      // gaming: nyender, dua tangan megang stik, jempol gerak
+      j.recline = -0.14;
+      j.shL = j.shR = 0.5;
+      j.elL = 1.24 + Math.sin(t * 11) * 0.05;
+      j.elR = 1.24 + Math.sin(t * 11 + 1.4) * 0.05;
+      j.headX = 0.07;
+    }
     return { joints: j, shake };
   }
 
@@ -152,6 +176,21 @@ export function poseJoints(
     j.shL = j.shR = 0.06;
     j.elL = j.elR = 0.12;
     j.headZ = 0.12;
+    return { joints: j, shake };
+  }
+
+  if (pose === "pingpong") {
+    // berdiri di ujung meja, satu tangan megang bet dan mengayun
+    const swing = Math.sin(t * 3.2);
+    j.shR = 0.9 + swing * 0.55;
+    j.elR = 0.7 - swing * 0.3;
+    j.shL = 0.2;
+    j.elL = 0.5;
+    j.hipL = 0.12;
+    j.hipR = -0.12;
+    j.kneeL = j.kneeR = -0.18;
+    j.lean = 0.1;
+    j.y = Math.abs(swing) * 0.03;
     return { joints: j, shake };
   }
 
