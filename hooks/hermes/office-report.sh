@@ -29,11 +29,21 @@ AGENT="$2"
 URL="https://erp.x-sha.id/api/method/xsha_office.api.hook"
 TOKEN_FILE="/opt/data/.office-token"
 
-[ -n "$EVENT" ] || exit 0
-[ -r "$TOKEN_FILE" ] || exit 0
+# Mode log opsional. Skrip ini sengaja bisu, dan itu bikin kegagalannya nggak
+# bisa dilacak sama sekali — sudah kejadian sekali. Bikin file penandanya:
+#     docker exec -u 10000 hermes touch /opt/data/.office-debug
+# lalu baca /opt/data/office-report.log. Hapus penandanya buat mematikan lagi.
+DEBUG_FLAG="/opt/data/.office-debug"
+LOG="/opt/data/office-report.log"
+log() { [ -f "$DEBUG_FLAG" ] && echo "$(date -Iseconds) $*" >> "$LOG" 2>/dev/null; return 0; }
+
+log "mulai event='$EVENT' agent='$AGENT' argc=$#"
+
+[ -n "$EVENT" ] || { log "berhenti: nama event kosong"; exit 0; }
+[ -r "$TOKEN_FILE" ] || { log "berhenti: token tidak terbaca"; exit 0; }
 
 TOKEN=$(head -n1 "$TOKEN_FILE" | tr -d '\r\n')
-[ -n "$TOKEN" ] || exit 0
+[ -n "$TOKEN" ] || { log "berhenti: token kosong"; exit 0; }
 
 # Nama event & agent dikirim lewat HEADER, bukan query string.
 #
@@ -42,13 +52,27 @@ TOKEN=$(head -n1 "$TOKEN_FILE" | tr -d '\r\n')
 # Ini pernah kejadian dan bikin laporan ditelan diam-diam. Header selamat.
 #
 # --data-binary @- : teruskan stdin apa adanya tanpa diutak-atik shell.
-curl -s -o /dev/null -m 5 \
-  -X POST \
-  -H 'Content-Type: application/json' \
-  -H "Authorization: token $TOKEN" \
-  -H "X-Office-Event: $EVENT" \
-  -H "X-Office-Agent: $AGENT" \
-  --data-binary @- \
-  "$URL" 2>/dev/null
+if [ -f "$DEBUG_FLAG" ]; then
+  BODY=$(cat)
+  log "body(${#BODY} byte): $(echo "$BODY" | head -c 300)"
+  RESP=$(printf '%s' "$BODY" | curl -s -m 5 -w '\n[http %{http_code}]' \
+    -X POST \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: token $TOKEN" \
+    -H "X-Office-Event: $EVENT" \
+    -H "X-Office-Agent: $AGENT" \
+    --data-binary @- \
+    "$URL" 2>&1)
+  log "respons: $(echo "$RESP" | head -c 400)"
+else
+  curl -s -o /dev/null -m 5 \
+    -X POST \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: token $TOKEN" \
+    -H "X-Office-Event: $EVENT" \
+    -H "X-Office-Agent: $AGENT" \
+    --data-binary @- \
+    "$URL" 2>/dev/null
+fi
 
 exit 0

@@ -29,8 +29,14 @@ export async function loadInitial(): Promise<void> {
     state: (AGENT_STATES.includes(a.state) ? a.state : "idle") as AgentState,
     tool: a.tool,
     detail: a.detail,
-    // Dianggap baru dilihat sekarang; backend udah nurunin yang stale ke idle.
-    seen: Date.now(),
+    // `idle_for` = sudah berapa detik agent itu nggak ngasih kabar, dihitung di
+    // server. Dipakai buat merekonstruksi kapan terakhir dia kedengaran.
+    //
+    // Penting: tanpa ini, semua agent dianggap "baru saja terlihat" tiap kali
+    // halaman dibuka — yang lagi tidur bakal bangun dan jalan ke pantry cuma
+    // gara-gara di-refresh. null = belum pernah lapor sama sekali, jadi dikasih
+    // 0 (epoch) supaya langsung terbaca sebagai nggak-ada-kabar-sejak-lama.
+    seen: a.idle_for == null ? 0 : Date.now() - Number(a.idle_for) * 1000,
   }));
   setAgents(rows);
 }

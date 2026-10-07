@@ -379,9 +379,18 @@ def get_state():
 
 	now = now_datetime()
 	for a in agents:
+		# Sudah berapa detik nggak ada kabar. Dikirim sebagai angka, bukan
+		# timestamp, supaya browser nggak perlu nebak timezone-nya.
+		#
+		# Ini yang bikin agent yang lama diem tetap di kasur setelah halaman
+		# di-refresh. Tanpa ini, frontend nganggap semua agent baru saja
+		# terlihat dan mereka semua balik ke pantry tiap kali halaman dibuka.
+		# None = belum pernah lapor sama sekali.
+		a.idle_for = int((now - a.last_seen).total_seconds()) if a.last_seen else None
+
 		if not a.state:
 			a.state = "idle"
-		elif a.last_seen and (now - a.last_seen).total_seconds() > STALE_SECONDS:
+		elif a.idle_for is not None and a.idle_for > STALE_SECONDS:
 			a.state = "idle"
 			a.tool = None
 			a.stale = 1

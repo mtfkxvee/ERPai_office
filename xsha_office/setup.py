@@ -143,6 +143,67 @@ def create_reporter_user(regenerate: int | str = 0):
 	return out
 
 
+# Agent yang didaftarkan supaya SELALU kelihatan di office, walau belum pernah
+# lapor sekali pun. Ini bukan state karangan: profile-nya memang ada, dan yang
+# ditampilkan justru keadaan sebenarnya — nganggur, lalu ketiduran.
+DEFAULT_AGENTS = [
+	{"agent": "hermes/accounting", "role": "Accounting"},
+	{"agent": "hermes/marketing", "role": "Marketing"},
+	{"agent": "hermes/data-analyst", "role": "Data Analyst"},
+	{"agent": "hermes/admin-deputygm", "role": "Admin Deputy GM"},
+	{"agent": "claude-code", "role": "Dev"},
+]
+
+
+@frappe.whitelist()
+def register_agents(agents: str | list | None = None):
+	"""Daftarkan agent supaya muncul di office tanpa harus lapor dulu.
+
+	Tanpa ini, agent cuma nongol setelah hook pertamanya bunyi — jadi profile
+	yang lagi nganggur nggak kelihatan sama sekali.
+
+	`last_seen` sengaja DIBIARKAN kosong. Office bakal menampilkan mereka
+	sebagai nggak-ada-kabar-sejak-lama, yaitu tidur di nap pod. Itu memang
+	keadaan yang sebenarnya; begitu hook pertamanya bunyi, mereka bangun.
+
+	Aman diulang. Agent yang sudah ada nggak disentuh (desk, warna, dan state
+	terakhirnya tetap).
+
+	    bench --site <site> execute xsha_office.setup.register_agents
+	"""
+	from xsha_office.api import _ensure_agent
+
+	if agents is None:
+		rows = DEFAULT_AGENTS
+	elif isinstance(agents, str):
+		rows = [{"agent": a.strip()} for a in agents.split(",") if a.strip()]
+	else:
+		rows = [a if isinstance(a, dict) else {"agent": str(a)} for a in agents]
+
+	dibuat, sudah_ada = [], []
+	for row in rows:
+		name = str(row.get("agent", "")).strip()
+		if not name:
+			continue
+		if frappe.db.exists("AI Agent", name):
+			sudah_ada.append(name)
+			continue
+		_ensure_agent(name)
+		if row.get("role"):
+			frappe.db.set_value("AI Agent", name, "role", row["role"], update_modified=False)
+		dibuat.append(name)
+
+	frappe.db.commit()
+	return {
+		"dibuat": dibuat,
+		"sudah_ada": sudah_ada,
+		"_catatan": (
+			"Agent baru belum pernah lapor, jadi di office mereka tidur di nap pod. "
+			"Begitu hook pertamanya bunyi, mereka bangun dan jalan ke mejanya."
+		),
+	}
+
+
 @frappe.whitelist()
 def check_reporter_user():
 	"""Read-only: lihat user ini bisa apa saja. Buat verifikasi sesudah setup."""
