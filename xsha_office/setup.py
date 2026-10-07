@@ -146,12 +146,17 @@ def create_reporter_user(regenerate: int | str = 0):
 # Agent yang didaftarkan supaya SELALU kelihatan di office, walau belum pernah
 # lapor sekali pun. Ini bukan state karangan: profile-nya memang ada, dan yang
 # ditampilkan justru keadaan sebenarnya — nganggur, lalu ketiduran.
+#
+# Isinya HANYA yang sudah benar-benar ada di server ini. Jangan menaruh agent
+# yang belum dipasang cuma karena rencananya mau ada: agent apa pun otomatis
+# terdaftar sendiri pada laporan pertamanya (lihat _ensure_agent di api.py),
+# jadi mendaftarkan di muka cuma bikin karakter kosong yang nggak akan pernah
+# bangun. `claude-code` sempat ada di sini dan jadi contohnya.
 DEFAULT_AGENTS = [
 	{"agent": "hermes/accounting", "role": "Accounting"},
 	{"agent": "hermes/marketing", "role": "Marketing"},
 	{"agent": "hermes/data-analyst", "role": "Data Analyst"},
 	{"agent": "hermes/admin-deputygm", "role": "Admin Deputy GM"},
-	{"agent": "claude-code", "role": "Dev"},
 ]
 
 
