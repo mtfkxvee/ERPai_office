@@ -8,6 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "agent_name",
+  "display_name",
   "role",
   "enabled",
   "column_break_identity",
@@ -28,6 +29,13 @@
    "label": "Agent Name",
    "reqd": 1,
    "unique": 1
+  },
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Name",
+   "description": "Nama yang tampil di office. Diisi otomatis dari baris judul pertama (# Nama) di SOUL.md agent; kalau kosong, dipakai nama dokumennya."
   },
   {
    "fieldname": "role",

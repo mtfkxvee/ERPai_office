@@ -184,6 +184,11 @@ export function idleText(a: Agent, now: number): string | null {
   return d > 900 ? "belum pernah" : `${d} hari`;
 }
 
+/** Nama yang ditampilkan: dari SOUL.md kalau ada, kalau nggak ya id agent-nya. */
+export function nameOf(a: Agent) {
+  return a.display_name?.trim() || a.agent;
+}
+
 export function colorOf(a: Agent) {
   return a.color || DEFAULT_COLORS[a.desk_index % DEFAULT_COLORS.length];
 }

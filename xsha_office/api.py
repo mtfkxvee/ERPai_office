@@ -73,6 +73,7 @@ def _apply(
 	detail: str | None = None,
 	session_id: str | None = None,
 	force_log: bool = False,
+	display_name: str | None = None,
 ):
 	"""Inti dari dua endpoint di bawah.
 
@@ -94,6 +95,13 @@ def _apply(
 		detail = detail[: DETAIL_MAX - 1] + "…"
 
 	_ensure_agent(agent)
+
+	# Nama tampilan datang dari SOUL.md agent (baris judul pertama), dikirim
+	# lewat header. Cuma ditulis kalau berubah, biar nggak nulis tiap hook.
+	if display_name:
+		display_name = display_name.strip()[:140]
+		if display_name != frappe.db.get_value("AI Agent", agent, "display_name"):
+			frappe.db.set_value("AI Agent", agent, "display_name", display_name, update_modified=False)
 
 	prev = frappe.db.get_value(
 		"AI Agent", agent, ["current_state", "current_tool"], as_dict=True
@@ -140,6 +148,7 @@ def report(
 	detail: str | None = None,
 	session_id: str | None = None,
 	log: str | int | None = None,
+	display_name: str | None = None,
 ):
 	"""Lapor state secara eksplisit.
 
@@ -153,6 +162,7 @@ def report(
 		detail,
 		session_id,
 		force_log=str(log) in ("1", "true", "True"),
+		display_name=display_name,
 	)
 
 
@@ -352,6 +362,7 @@ def hook(**payload):
 		detail=_detail_from(event, payload),
 		session_id=payload.get("session_id"),
 		force_log=event in ALWAYS_LOG,
+		display_name=frappe.get_request_header("X-Office-Name") or payload.get("display_name"),
 	)
 
 
@@ -366,6 +377,7 @@ def get_state():
 		filters={"enabled": 1},
 		fields=[
 			"name as agent",
+			"display_name",
 			"role",
 			"color",
 			"desk_index",
@@ -377,16 +389,31 @@ def get_state():
 		order_by="desk_index asc",
 	)
 
-	now = now_datetime()
+	# Lama nggak ada kabar, dihitung LANGSUNG DI SQL.
+	#
+	# Kenapa nggak lewat get_all seperti field lain: `frappe.get_all` membuang
+	# field `last_seen` tanpa pesan apa pun. Diukur 7 Okt 2026 di site ini —
+	# kolomnya ada (`datetime(6)`), DocField-nya terdaftar di meta, SELECT
+	# mentah mengembalikan nilainya, `modified` dan `creation` (sama-sama
+	# Datetime) ikut terbawa, tapi `last_seen` hilang bahkan ketika dialias.
+	# Akar masalahnya di dalam Frappe dan belum ketemu; query ini menghindarinya
+	# sama sekali, jadi nggak bergantung pada sebabnya.
+	#
+	# Dikirim sebagai angka detik, bukan timestamp, supaya browser nggak perlu
+	# menebak timezone. None = belum pernah lapor.
+	idle = {
+		r[0]: int(r[1]) if r[1] is not None else None
+		for r in frappe.db.sql(
+			"""
+			SELECT name, TIMESTAMPDIFF(SECOND, last_seen, NOW())
+			FROM `tabAI Agent`
+			WHERE last_seen IS NOT NULL
+			"""
+		)
+	}
+
 	for a in agents:
-		# Sudah berapa detik nggak ada kabar. Dikirim sebagai angka, bukan
-		# timestamp, supaya browser nggak perlu nebak timezone-nya.
-		#
-		# Ini yang bikin agent yang lama diem tetap di kasur setelah halaman
-		# di-refresh. Tanpa ini, frontend nganggap semua agent baru saja
-		# terlihat dan mereka semua balik ke pantry tiap kali halaman dibuka.
-		# None = belum pernah lapor sama sekali.
-		a.idle_for = int((now - a.last_seen).total_seconds()) if a.last_seen else None
+		a.idle_for = idle.get(a.agent)
 
 		if not a.state:
 			a.state = "idle"

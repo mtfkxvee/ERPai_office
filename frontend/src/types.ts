@@ -39,6 +39,8 @@ export const LEISURE_POSES: Pose[] = [
 
 export type Agent = {
   agent: string;
+  /** Nama dari baris judul SOUL.md. Kalau kosong, dipakai `agent`. */
+  display_name?: string | null;
   role?: string | null;
   color?: string | null;
   desk_index: number;

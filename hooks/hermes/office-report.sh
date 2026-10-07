@@ -26,6 +26,7 @@
 
 EVENT="$1"
 AGENT="$2"
+SOUL="$3"   # opsional: path SOUL.md, buat ambil nama tampilan
 URL="https://erp.x-sha.id/api/method/xsha_office.api.hook"
 TOKEN_FILE="/opt/data/.office-token"
 
@@ -45,6 +46,16 @@ log "mulai event='$EVENT' agent='$AGENT' argc=$#"
 TOKEN=$(head -n1 "$TOKEN_FILE" | tr -d '\r\n')
 [ -n "$TOKEN" ] || { log "berhenti: token kosong"; exit 0; }
 
+# Nama tampilan = baris judul pertama di SOUL.md, misalnya "# Rina".
+# Kalau SOUL.md nggak ada atau nggak punya baris judul, dibiarkan kosong dan
+# office memakai nama agent apa adanya. Sengaja nggak memaksa: SOUL.md itu
+# prompt kepribadian, bukan file konfigurasi.
+NAME=""
+if [ -n "$SOUL" ] && [ -r "$SOUL" ]; then
+  NAME=$(grep -m1 '^#[[:space:]]' "$SOUL" 2>/dev/null | sed 's/^#[[:space:]]*//' | cut -c1-140)
+fi
+log "nama dari SOUL.md: [$NAME]"
+
 # Nama event & agent dikirim lewat HEADER, bukan query string.
 #
 # Query string HILANG kalau request bawa body JSON — Frappe mengganti form_dict
@@ -61,6 +72,7 @@ if [ -f "$DEBUG_FLAG" ]; then
     -H "Authorization: token $TOKEN" \
     -H "X-Office-Event: $EVENT" \
     -H "X-Office-Agent: $AGENT" \
+    ${NAME:+-H "X-Office-Name: $NAME"} \
     --data-binary @- \
     "$URL" 2>&1)
   log "respons: $(echo "$RESP" | head -c 400)"
@@ -71,6 +83,7 @@ else
     -H "Authorization: token $TOKEN" \
     -H "X-Office-Event: $EVENT" \
     -H "X-Office-Agent: $AGENT" \
+    ${NAME:+-H "X-Office-Name: $NAME"} \
     --data-binary @- \
     "$URL" 2>/dev/null
 fi

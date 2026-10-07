@@ -4,7 +4,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { BED, postureFor, routeTo, targetFor } from "./layout";
 import { facingFor, poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
-import { colorOf, idleText, type Placement } from "./store";
+import { colorOf, idleText, nameOf, type Placement } from "./store";
 import type { Agent, Pose } from "./types";
 
 const SKIN = "#d9a06b";
@@ -219,7 +219,7 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
               color: "#fff",
             }}
           >
-            <div style={{ fontWeight: 700 }}>{agent.agent}</div>
+            <div style={{ fontWeight: 700 }}>{nameOf(agent)}</div>
             <div style={{ color: badge.color }}>
               {badge.text}
               {agent.tool && pose === "working" ? ` · ${agent.tool}` : ""}

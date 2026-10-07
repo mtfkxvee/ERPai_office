@@ -23,6 +23,7 @@ export async function loadInitial(): Promise<void> {
   const r = await window.frappe.call({ method: "xsha_office.api.get_state" });
   const rows: Agent[] = (r?.message?.agents || []).map((a: any) => ({
     agent: a.agent,
+    display_name: a.display_name,
     role: a.role,
     color: a.color,
     desk_index: Number(a.desk_index) || 0,

@@ -1,4 +1,4 @@
-import { idleText, type Placement } from "./store";
+import { idleText, nameOf, type Placement } from "./store";
 import type { Agent, Pose } from "./types";
 
 const DOT: Record<Pose, { c: string; label: string }> = {
@@ -63,7 +63,7 @@ export function Hud({
             <div key={a.agent} style={{ display: "flex", gap: 6, alignItems: "baseline" }}>
               <span style={{ color: d.c }}>●</span>
               <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {a.agent}
+                {nameOf(a)}
               </span>
               {/* Angka ini yang jadi ukuran keaktifan, bukan posisi karakternya
                   — tempat santainya sengaja disebar biar nggak suram. */}
