@@ -33,12 +33,66 @@ export function Hud({
   agents,
   placements,
   demo,
+  pilot,
+  onExit,
 }: {
   agents: Agent[];
   placements: Map<string, Placement>;
   demo: boolean;
+  pilot?: { agent: string } | null;
+  onExit?: () => void;
 }) {
   const now = Date.now();
+  const namaDikemudikan = pilot
+    ? nameOf(agents.find((a) => a.agent === pilot.agent) ?? ({ agent: pilot.agent } as Agent))
+    : null;
+  if (pilot) {
+    return (
+      <>
+        <div
+          style={{
+            ...panel,
+            top: 12,
+            left: "50%",
+            transform: "translateX(-50%)",
+            textAlign: "center",
+            maxWidth: 460,
+            pointerEvents: "auto",
+            border: "1px solid rgba(255,214,102,.45)",
+          }}
+        >
+          <div style={{ fontWeight: 700, color: "#ffd166", letterSpacing: 0.3 }}>
+            MODE JALAN — {namaDikemudikan}
+          </div>
+          {/* Penegasan yang disengaja: office ini dibangun dengan aturan
+              "cuma tampilkan sinyal nyata". Karakter yang dikemudikan tidak
+              mewakili apa pun yang sedang dikerjakan agent-nya. */}
+          <div style={{ color: "#c3c8d0", marginTop: 2 }}>
+            Kamu yang menggerakkan, bukan agent-nya. Tidak ada yang dicatat.
+          </div>
+          <div style={{ color: "#8d949e", marginTop: 6 }}>
+            WASD jalan · Shift lari · gerakkan tetikus buat menoleh
+          </div>
+          <button
+            onClick={onExit}
+            style={{
+              marginTop: 8,
+              padding: "4px 14px",
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,.25)",
+              background: "rgba(255,255,255,.08)",
+              color: "#e8eaed",
+              font: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            Keluar (Esc)
+          </button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div style={panel}>
@@ -91,6 +145,8 @@ export function Hud({
         meja = kerja · whiteboard = mikir · matras merah = ketahan
         <br />
         nganggur &gt;4 menit disebar ke tempat santai — lamanya ada di label
+        <br />
+        <span style={{ color: "#ffd166" }}>klik karakter buat masuk sudut pandangnya</span>
       </div>
     </>
   );

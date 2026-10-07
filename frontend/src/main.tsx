@@ -9,6 +9,9 @@ import { Hud } from "./Hud";
 import { ROOM } from "./layout";
 import { Office } from "./Office";
 import { resolvePoses, useAgents } from "./store";
+import { Crosshair, Pilot } from "./PilotView";
+import { startPilot, stopPilot, usePilot } from "./pilot.ts";
+import type { Agent } from "./types";
 
 const TARGET: [number, number, number] = [ROOM.w / 2, 1.1, ROOM.d / 2];
 
@@ -46,6 +49,10 @@ function App() {
   const placements = useMemo(() => resolvePoses(agents, Date.now()), [agents]);
   const [demo] = useState(() => !hasFrappe());
   const [error, setError] = useState<string | null>(null);
+  const pilot = usePilot();
+
+  const masukPov = (a: Agent, x: number, z: number, yaw: number) =>
+    startPilot(a.agent, x, z, yaw);
 
   useEffect(() => {
     if (demo) return startDemo();
@@ -72,10 +79,17 @@ function App() {
         <Office agents={agents} placements={placements} />
         {agents.map((a) => {
           const pl = placements.get(a.agent);
-          return pl ? <AgentChar key={a.agent} agent={a} placement={pl} /> : null;
+          return pl ? (
+            <AgentChar key={a.agent} agent={a} placement={pl} onSelect={masukPov} />
+          ) : null;
         })}
 
+        {pilot && <Pilot onExit={stopPilot} />}
+
         <OrbitControls
+          // Dimatikan total saat mengemudi: kalau tidak, seret tetikus buat
+          // menoleh ikut memutar kamera orbit dan pandangannya berebut.
+          enabled={!pilot}
           target={TARGET}
           enablePan={false}
           minDistance={8}
@@ -86,7 +100,8 @@ function App() {
         />
       </Canvas>
 
-      <Hud agents={agents} placements={placements} demo={demo} />
+      <Hud agents={agents} placements={placements} demo={demo} pilot={pilot} onExit={stopPilot} />
+      {pilot && <Crosshair />}
 
       {error && (
         <div

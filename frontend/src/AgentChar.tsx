@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { BED, postureFor, routeTo, targetFor } from "./layout";
 import { facingFor, poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
 import { colorOf, idleText, nameOf, type Placement } from "./store";
+import { getPilot, isPiloted } from "./pilot.ts";
 import type { Agent, Pose } from "./types";
 
 const SKIN = "#d9a06b";
@@ -29,7 +30,15 @@ const STATE_LABEL: Record<Pose, { text: string; color: string }> = {
 
 /** Karakter bersendi (lutut & siku) yang bisa duduk, main PS, dan rebahan.
  * Angka rig-nya dari poses.ts, dipakai bareng sama `npm run verify`. */
-export function AgentChar({ agent, placement }: { agent: Agent; placement: Placement }) {
+export function AgentChar({
+  agent,
+  placement,
+  onSelect,
+}: {
+  agent: Agent;
+  placement: Placement;
+  onSelect?: (agent: Agent, x: number, z: number, yaw: number) => void;
+}) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const hinge = useRef<THREE.Group>(null);
@@ -66,6 +75,43 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
     // Pose & tempat duduk ditentukan resolvePoses() untuk semua agent
     // sekaligus — tidak boleh dihitung sendiri di sini, nanti dua agent bisa
     // memilih tempat yang sama.
+    // Sedang dikemudikan: posisi dan arah datang dari kendali pemain, bukan
+    // dari state agent. Tidak ada apa pun yang dikirim ke server — lihat
+    // catatan di pilot.ts.
+    const dikemudikan = getPilot();
+    if (dikemudikan && dikemudikan.agent === agent.agent) {
+      pos.current.x = dikemudikan.x;
+      pos.current.z = dikemudikan.z;
+      body.current.rotation.y = dikemudikan.yaw;
+
+      const c2 = cur.current;
+      const want2 = poseJoints("idle", "stand", dikemudikan.moving, t, BED.matTop).joints;
+      const k2 = 1 - Math.exp(-14 * dt);
+      for (const key of Object.keys(want2) as (keyof Joints)[]) {
+        c2[key] = THREE.MathUtils.lerp(c2[key], want2[key], k2);
+      }
+      g.position.set(pos.current.x, c2.y, pos.current.z);
+      body.current.rotation.x = c2.lying;
+      if (hinge.current) hinge.current.rotation.x = c2.recline;
+      if (torso.current) torso.current.rotation.x = c2.lean;
+      if (hipL.current) hipL.current.rotation.x = c2.hipL;
+      if (hipR.current) hipR.current.rotation.x = c2.hipR;
+      if (kneeL.current) kneeL.current.rotation.x = c2.kneeL;
+      if (kneeR.current) kneeR.current.rotation.x = c2.kneeR;
+      if (shoulderL.current) shoulderL.current.rotation.x = c2.shL;
+      if (shoulderR.current) shoulderR.current.rotation.x = c2.shR;
+      if (elbowL.current) elbowL.current.rotation.x = c2.elL;
+      if (elbowR.current) elbowR.current.rotation.x = c2.elR;
+      if (head.current) head.current.rotation.set(0, 0, 0);
+      if (labelAnchor.current) labelAnchor.current.position.y = 2.5;
+      if (heldMug.current) heldMug.current.visible = false;
+      if (pad.current) pad.current.visible = false;
+      // Jalur rute disetel ulang supaya waktu keluar nanti dia menghitung
+      // kembali dari posisi barunya, bukan meneruskan rute lama.
+      lastGoal.current = "";
+      return;
+    }
+
     const pose = placement.pose;
     const goal = targetFor(pose, placement.slot);
 
@@ -145,6 +191,7 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
   });
 
   const now = Date.now();
+  const dikemudikan = isPiloted(agent.agent);
   const pose = placement.pose;
   const badge = STATE_LABEL[pose];
   const idle = idleText(agent, now);
@@ -212,10 +259,27 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
   );
 
   return (
-    <group ref={root}>
+    <group
+      ref={root}
+      onClick={(e) => {
+        if (!onSelect || dikemudikan) return;
+        e.stopPropagation();
+        onSelect(agent, pos.current.x, pos.current.z, body.current?.rotation.y ?? 0);
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "";
+      }}
+    >
       {/* Label DOM, bukan teks 3D — nggak perlu load font dari mana pun.
           Ditaruh di luar grup badan supaya nggak ikut terbalik waktu tidur. */}
+      {/* Label disembunyikan saat dikemudikan: dari sudut pandang orang
+          pertama dia menempel persis di depan kamera. */}
       <group ref={labelAnchor} position={[0, 2.5, 0]}>
+        {!dikemudikan && (
         <Html position={[0, 0, 0]} center distanceFactor={15} zIndexRange={[10, 0]}>
           <div
             style={{
@@ -241,6 +305,7 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
             </div>
           </div>
         </Html>
+        )}
       </group>
 
       <group ref={body}>
@@ -284,7 +349,7 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
             ))}
           </group>
 
-          <group ref={head} position={[0, RIG.headY, 0]}>
+          <group ref={head} position={[0, RIG.headY, 0]} visible={!dikemudikan}>
             <mesh castShadow>
               <boxGeometry args={[RIG.headSize, RIG.headSize, RIG.headSize]} />
               <meshStandardMaterial color={SKIN} roughness={0.8} />

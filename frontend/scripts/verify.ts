@@ -36,6 +36,7 @@ import {
   readingSpot,
   RELAX_X0,
   ROOM,
+  RUNNER,
   routeTo,
   SEAT_Y,
   targetFor,
@@ -44,6 +45,7 @@ import {
 } from "../src/layout.ts";
 import { DESK_SEAT, facingFor, poseJoints, RIG } from "../src/poses.ts";
 import { LEISURE_POSES } from "../src/types.ts";
+import { blocked, move, solids } from "../src/collide.ts";
 import { resolvePoses } from "../src/store.ts";
 
 /* ---------------------------------------------------------------- */
@@ -606,6 +608,90 @@ console.log("\npembagian tempat (jangan ada karakter tumpuk)");
     );
     check("urutan data dibalik -> pembagian tetap sama", sama);
   }
+}
+
+/* ---- 7d. mode jalan: tabrakan ----------------------------------- */
+console.log("\nmode jalan (POV karakter)");
+{
+  /** Coba jalan dari A ke B langkah demi langkah; balikin posisi akhirnya. */
+  const jalan = (
+    x0: number,
+    z0: number,
+    x1: number,
+    z1: number,
+    langkah = 400,
+  ) => {
+    let x = x0;
+    let z = z0;
+    for (let i = 0; i < langkah; i++) {
+      const dx = x1 - x;
+      const dz = z1 - z;
+      const sisa = Math.hypot(dx, dz);
+      if (sisa < 0.05) break;
+      const s = Math.min(0.05, sisa);
+      const n = move(x, z, (dx / sisa) * s, (dz / sisa) * s);
+      if (Math.abs(n.x - x) < 1e-9 && Math.abs(n.z - z) < 1e-9) break; // mentok
+      x = n.x;
+      z = n.z;
+    }
+    return { x, z, sampai: Math.hypot(x1 - x, z1 - z) < 0.3 };
+  };
+
+  // Tidak boleh bisa berdiri di dalam perabot.
+  let didalam = "";
+  for (const b of solids()) {
+    if (!blocked(b.x, b.z)) didalam = b.label;
+  }
+  check("semua perabot padat memang memblokir", didalam === "", `${didalam} tidak memblokir`);
+
+  // Tidak boleh keluar ruangan.
+  const keluar = jalan(5, 5, -20, 5);
+  check("tidak bisa menembus dinding kiri", keluar.x > 0, `berhenti di x=${keluar.x.toFixed(2)}`);
+  const keluar2 = jalan(5, 5, 5, 60);
+  check("tidak bisa menembus dinding depan", keluar2.z < ROOM.d, `berhenti di z=${keluar2.z.toFixed(2)}`);
+
+  // Sekat harus memblokir, KECUALI di bukaan pintunya.
+  const tembusSekat = jalan(20, 3, 30, 3);
+  check(
+    "sekat memblokir di luar pintu",
+    tembusSekat.x < PARTITION.x,
+    `tembus sampai x=${tembusSekat.x.toFixed(2)}`,
+  );
+  const lewatPintu = jalan(21, DOOR.z, 27, DOOR.z);
+  check(
+    "pintu bisa dilewati",
+    lewatPintu.sampai,
+    `berhenti di x=${lewatPintu.x.toFixed(2)}, z=${lewatPintu.z.toFixed(2)}`,
+  );
+
+  // Meja harus memblokir, tapi lorong di antara dua baris meja harus lowong.
+  const kemeja = jalan(DESKS[0].x, DESKS[0].z + 3, DESKS[0].x, DESKS[0].z);
+  check(
+    "tidak bisa berdiri di dalam meja",
+    !blocked(kemeja.x, kemeja.z),
+    `berhenti di dalam perabot`,
+  );
+  const lorong = jalan(2.5, RUNNER.z + 0.6, 22, RUNNER.z + 0.6);
+  check("lorong tengah ruang kerja bisa dilalui", lorong.sampai, `berhenti di x=${lorong.x.toFixed(2)}`);
+
+  // Menyusur dinding harus MENGGESER, bukan mentok.
+  {
+    const n = move(0.5, 5, -1, 0.5);
+    check(
+      "menabrak dinding menyamping tetap bisa geser",
+      Math.abs(n.z - 5.5) < 1e-6,
+      `z bergerak ${(n.z - 5).toFixed(3)} dari 0.5 yang diminta`,
+    );
+  }
+
+  // Titik tempat karakter berdiri/duduk tidak boleh berada di dalam perabot
+  // padat — kalau iya, begitu keluar dari mode jalan dia terjebak.
+  let terjebak = "";
+  for (let i = 0; i < DESK_COUNT; i++) {
+    const c = chairPos(i);
+    if (blocked(c.x, c.z)) terjebak = `kursi meja ${i}`;
+  }
+  check("titik duduk di meja tidak terjebak di dalam perabot", terjebak === "", terjebak);
 }
 
 /* ---- 8. tata letak masuk ruangan -------------------------------- */
