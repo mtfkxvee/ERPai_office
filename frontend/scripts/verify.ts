@@ -53,6 +53,7 @@ import { resolvePoses } from "../src/store.ts";
 type Rig = {
   root: THREE.Object3D;
   body: THREE.Object3D;
+  hinge: THREE.Object3D;
   torso: THREE.Object3D;
   head: THREE.Object3D;
   face: THREE.Object3D;
@@ -75,7 +76,12 @@ function node(parent: THREE.Object3D, x = 0, y = 0, z = 0) {
 function buildRig(): Rig {
   const root = new THREE.Object3D();
   const body = node(root);
-  const torso = node(body);
+  // Engsel di ketinggian pinggul, isinya digeser balik — persis seperti
+  // AgentChar.tsx. Kalau tidak sama, tes mengukur rig yang berbeda dari yang
+  // dirender dan hasilnya tidak berarti apa-apa.
+  const hinge = node(body, 0, RIG.hipY, 0);
+  const core = node(hinge, 0, -RIG.hipY, 0);
+  const torso = node(core);
 
   const head = node(torso, 0, RIG.headY, 0);
   const face = node(head, 0, 0.035, RIG.faceZ);
@@ -101,18 +107,22 @@ function buildRig(): Rig {
     foot[k] = node(knee[k], 0, RIG.footY, RIG.footZ);
   }
 
-  return { root, body, torso, head, face, faceAhead, shoulder, elbow, hand, hip, knee, foot };
+  return { root, body, hinge, torso, head, face, faceAhead, shoulder, elbow, hand, hip, knee, foot };
 }
 
 /** Taruh karakter sesuai pose, lalu hitung semua matriks world. */
 function apply(rig: Rig, pose: string, deskIndex: number, t = 0.37) {
   const goal = targetFor(pose, deskIndex);
   const posture = postureFor(pose);
-  const { joints } = poseJoints(pose, posture, false, t, BED.matTop);
+  const { joints } = poseJoints(
+    pose, posture, false, t, BED.matTop,
+    (goal as { seatY?: number }).seatY,
+  );
 
   rig.root.position.set(goal.x, joints.y, goal.z);
   rig.body.rotation.order = "YXZ";
-  rig.body.rotation.set(joints.recline, goal.rotY, 0);
+  rig.body.rotation.set(joints.lying, goal.rotY, 0);
+  rig.hinge.rotation.x = joints.recline;
   rig.torso.rotation.x = joints.lean;
   rig.head.rotation.set(joints.headX, 0, joints.headZ);
   rig.shoulder.L.rotation.x = joints.shL;
@@ -393,11 +403,37 @@ console.log("\ntempat santai (buat agent yang lama nggak ada kabar)");
   // atau nyusup. Angka perabot diambil dari relax.tsx.
   check("sofa: dudukan 0.54 + tebal 0.17/2 = 0.625", SEAT_Y.sofa, 0.54 + 0.17 / 2);
   check("kursi baca: dudukan 0.56 + tebal 0.16/2 = 0.64", SEAT_Y.armchair, 0.56 + 0.16 / 2);
+  // Bean bag itu TENGGELAM, bukan nangkring: pinggul harus di BAWAH permukaan
+  // bantalan (0.34), tapi jelas di atas lantai.
   check(
-    "bean bag: di antara permukaan depan (0.34) dan sandaran (0.57)",
-    SEAT_Y.beanbag > 0.34 && SEAT_Y.beanbag < 0.57,
+    "bean bag: pinggul tenggelam di bawah permukaan bantalan (0.34)",
+    SEAT_Y.beanbag > 0.12 && SEAT_Y.beanbag < 0.34,
     `seatY=${SEAT_Y.beanbag}`,
   );
+
+  // Yang membedakan bean bag dari kursi: lutut lebih TINGGI dari pinggul.
+  {
+    apply(rig, "lounging", 0);
+    const pinggul = wp(rig.hip.R);
+    const lutut = wp(rig.knee.R);
+    const kaki = wp(rig.foot.R);
+    check(
+      "bean bag: lutut lebih tinggi dari pinggul",
+      lutut.y > pinggul.y,
+      `lutut y=${lutut.y.toFixed(3)} vs pinggul y=${pinggul.y.toFixed(3)}`,
+    );
+    check(
+      "bean bag: telapak kaki nyaris menyentuh lantai",
+      kaki.y > -0.05 && kaki.y < 0.3,
+      `kaki y=${kaki.y.toFixed(3)}`,
+    );
+    const kepala = wp(rig.head);
+    check(
+      "bean bag: kepala tidak tenggelam di bawah bantalan",
+      kepala.y > 0.6,
+      `kepala y=${kepala.y.toFixed(3)}`,
+    );
+  }
 
   // Karakter harus menghadap SEARAH bean bag-nya, bukan membelakangi sandaran.
   let hadap = true;

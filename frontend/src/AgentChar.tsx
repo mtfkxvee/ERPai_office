@@ -32,6 +32,7 @@ const STATE_LABEL: Record<Pose, { text: string; color: string }> = {
 export function AgentChar({ agent, placement }: { agent: Agent; placement: Placement }) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
+  const hinge = useRef<THREE.Group>(null);
   const labelAnchor = useRef<THREE.Group>(null);
   const torso = useRef<THREE.Group>(null);
   const head = useRef<THREE.Group>(null);
@@ -114,8 +115,13 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
     // sumbu DUNIA, jadi begitu karakter menghadap ke samping, "menyandar"
     // berubah jadi miring ke samping. Di sofa (hadap -90 derajat) efeknya
     // total: komponen sandarannya nol.
+    // Sandaran berporos di PINGGUL, bukan di telapak kaki. Grup `body`
+    // titik asalnya di lantai; kalau recline dikenakan di situ, seluruh badan
+    // mengayun ke belakang-bawah dan pinggulnya meleset dari dudukan —
+    // karakternya kelihatan nangkring dan melayang.
     body.current.rotation.order = "YXZ";
-    body.current.rotation.x = c.recline;
+    body.current.rotation.x = c.lying;
+    if (hinge.current) hinge.current.rotation.x = c.recline;
     if (torso.current) torso.current.rotation.x = c.lean;
     if (hipL.current) hipL.current.rotation.x = c.hipL;
     if (hipR.current) hipR.current.rotation.x = c.hipR;
@@ -238,6 +244,10 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
       </group>
 
       <group ref={body}>
+        {/* engsel di ketinggian pinggul; isinya digeser balik supaya koordinat
+            semua anggota badan tetap sama seperti sebelumnya */}
+        <group ref={hinge} position={[0, RIG.hipY, 0]}>
+        <group position={[0, -RIG.hipY, 0]}>
         <group ref={torso}>
           <mesh position={[0, RIG.torsoY, 0]} castShadow>
             <boxGeometry args={[0.52, 0.78, 0.29]} />
@@ -316,6 +326,12 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
           <Arm side={1} shoulderRef={shoulderR} elbowRef={elbowR} />
         </group>
 
+        </group>
+        </group>
+
+        {/* Kaki di LUAR engsel: menyandar itu gerakan badan atas, kaki tetap
+            di tempatnya. Waktu tidur, yang memutar semuanya `lying` di grup
+            badan, jadi kaki tetap ikut. */}
         <Leg side={-1} hipRef={hipL} kneeRef={kneeL} />
         <Leg side={1} hipRef={hipR} kneeRef={kneeR} />
       </group>

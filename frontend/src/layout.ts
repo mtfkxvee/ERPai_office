@@ -166,15 +166,18 @@ export const BEANBAG_SPOTS = [
  * ke permukaannya. */
 export const SEAT_Y = {
   sofa: 0.625,
-  beanbag: 0.42,
+  beanbag: 0.26,   // tenggelam: permukaan bantalan 0.34, pinggul di bawahnya
   armchair: 0.64,
 };
 
 export function beanbagSpot(i: number) {
   const s = BEANBAG_SPOTS[((i % BEANBAG_SPOTS.length) + BEANBAG_SPOTS.length) % BEANBAG_SPOTS.length];
+  // Digeser 0.1 ke arah hadap bag (lokal -z), supaya punggungnya mendarat di
+  // gundukan belakang dan bukan duduk pas di tengah.
+  const maju = 0.1;
   return {
-    x: BEANBAGS.x + s.dx,
-    z: BEANBAGS.z + s.dz,
+    x: BEANBAGS.x + s.dx - maju * Math.sin(s.r),
+    z: BEANBAGS.z + s.dz - maju * Math.cos(s.r),
     // Ikut putaran bean bag-nya. Sandaran ada di sisi +z lokal, dan karakter
     // menghadap -z pada rotY=0 — jadi rotY = putaran bag-nya, bukan nilai tetap.
     rotY: s.r,

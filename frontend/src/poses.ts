@@ -70,6 +70,9 @@ export const SOFA_SEAT = 0.625;
 export type Joints = {
   y: number;
   lean: number;
+  /** Rebah SELURUH badan di titik asalnya (telapak kaki). Hanya buat tidur. */
+  lying: number;
+  /** Menyandar BADAN ATAS saja, berporos di pinggul. Kaki tidak ikut. */
   recline: number;
   hipL: number;
   hipR: number;
@@ -86,6 +89,7 @@ export type Joints = {
 export const ZERO_JOINTS: Joints = {
   y: 0,
   lean: 0,
+  lying: 0,
   recline: 0,
   hipL: 0,
   hipR: 0,
@@ -157,13 +161,17 @@ export function poseJoints(
 
     if (pose === "lounging") {
       // bean bag: paling nyender, kaki paling nyelonjor, tangan di belakang
-      j.recline = 0.34;
-      j.hipL = j.hipR = FWD - 0.42;
-      j.kneeL = -FWD + 0.72;
-      j.kneeR = -FWD + 0.64;
-      j.shL = j.shR = -0.5;
-      j.elL = j.elR = 0.25;
-      j.headX = -0.1;
+      // Bean bag bukan kursi: pinggul tenggelam, PAHA NAIK melewati
+      // horizontal sehingga lutut lebih tinggi dari pinggul, badan rebah.
+      // Sudut paha > PI/2 itu yang membedakannya dari duduk biasa.
+      j.recline = 0.5;
+      j.hipL = FWD + 0.22;
+      j.hipR = FWD + 0.16;
+      j.kneeL = -1.0;
+      j.kneeR = -0.94;
+      j.shL = j.shR = -0.35;
+      j.elL = j.elR = 0.4;
+      j.headX = -0.25;
       j.y += Math.sin(t * 1.4) * 0.012;
     } else if (pose === "reading") {
       // kursi baca: tegak, dua tangan megang buku di depan dada
@@ -184,8 +192,9 @@ export function poseJoints(
   }
 
   if (posture === "bed") {
-    // Badan diputar 90 derajat di sumbu x: kepala ke arah +z (sisi bantal).
-    j.recline = FWD;
+    // Seluruh badan direbahkan 90 derajat: kepala ke arah +z (sisi bantal).
+    // Pakai `lying`, bukan `recline` — waktu tidur kaki HARUS ikut berputar.
+    j.lying = FWD;
     j.y = matTop + 0.15 + Math.sin(t * 1.1) * 0.012;
     j.shL = j.shR = 0.06;
     j.elL = j.elR = 0.12;
