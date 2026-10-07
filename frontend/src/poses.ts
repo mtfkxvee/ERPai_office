@@ -34,7 +34,21 @@ export const RIG = {
   faceZ: -0.251,
 };
 
-/** Maju = +PI/2 di sumbu x. */
+/** Maju = +PI/2 di sumbu x, UNTUK ANGGOTA BADAN.
+ *
+ * HATI-HATI, tandanya berlawanan antara anggota badan dan badan/kepala:
+ *
+ *   Lengan & paha menggantung ke BAWAH (mesh-nya di -y). Rotasi +x memutar
+ *   ujungnya ke -z, yaitu ke arah hadap -> +x = MAJU.
+ *
+ *   Badan & kepala menjulur ke ATAS (+y). Rotasi +x memutar ujung atasnya ke
+ *   +z, menjauh dari arah hadap -> +x = MENYANDAR KE BELAKANG / dagu naik.
+ *
+ * Tanda yang sama, hasil yang berlawanan, semata-mata karena yang satu
+ * mengarah ke bawah dan yang satu ke atas. Ini sudah salah sekali: semua
+ * `recline` diberi nilai negatif dengan maksud "menyandar", padahal yang
+ * terjadi badannya membungkuk ke depan. `npm run verify` sekarang mengunci
+ * arahnya. */
 export const FWD = Math.PI / 2;
 
 /** Rotasi y supaya karakter MENGHADAP arah (dx, dz).
@@ -123,8 +137,8 @@ export function poseJoints(
     if (pose === "working") {
       j.shL = j.shR = 0.68;
       j.elL = j.elR = 0.6 + Math.sin(t * 15) * 0.09;
-      j.headX = 0.14;
-      j.lean = 0.06;
+      j.headX = -0.16;
+      j.lean = -0.12;
     } else {
       // done: tangan ngangkat
       j.shL = j.shR = 2.5;
@@ -143,28 +157,28 @@ export function poseJoints(
 
     if (pose === "lounging") {
       // bean bag: paling nyender, kaki paling nyelonjor, tangan di belakang
-      j.recline = -0.3;
+      j.recline = 0.34;
       j.hipL = j.hipR = FWD - 0.42;
       j.kneeL = -FWD + 0.72;
       j.kneeR = -FWD + 0.64;
       j.shL = j.shR = -0.5;
       j.elL = j.elR = 0.25;
-      j.headX = -0.12;
+      j.headX = -0.1;
       j.y += Math.sin(t * 1.4) * 0.012;
     } else if (pose === "reading") {
       // kursi baca: tegak, dua tangan megang buku di depan dada
-      j.recline = -0.06;
+      j.recline = 0.07;
       j.shL = j.shR = 0.62;
       j.elL = j.elR = 1.05;
-      j.headX = 0.2;
+      j.headX = -0.22;
       j.y += Math.sin(t * 1.6) * 0.008;
     } else {
       // gaming: nyender, dua tangan megang stik, jempol gerak
-      j.recline = -0.14;
+      j.recline = 0.16;
       j.shL = j.shR = 0.5;
       j.elL = 1.24 + Math.sin(t * 11) * 0.05;
       j.elR = 1.24 + Math.sin(t * 11 + 1.4) * 0.05;
-      j.headX = 0.07;
+      j.headX = -0.05;
     }
     return { joints: j, shake };
   }

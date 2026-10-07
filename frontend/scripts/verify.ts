@@ -111,6 +111,7 @@ function apply(rig: Rig, pose: string, deskIndex: number, t = 0.37) {
   const { joints } = poseJoints(pose, posture, false, t, BED.matTop);
 
   rig.root.position.set(goal.x, joints.y, goal.z);
+  rig.body.rotation.order = "YXZ";
   rig.body.rotation.set(joints.recline, goal.rotY, 0);
   rig.torso.rotation.x = joints.lean;
   rig.head.rotation.set(joints.headX, 0, joints.headZ);
@@ -447,6 +448,47 @@ console.log("\ntempat santai (buat agent yang lama nggak ada kabar)");
     tujuan.size,
     LEISURE_POSES.length,
   );
+}
+
+/* ---- 7bb. arah sandaran: harus ke belakang, bukan membungkuk ----- */
+console.log("\narah badan waktu duduk (menyandar, bukan membungkuk)");
+{
+  // Rotasi +x punya arti BERLAWANAN untuk anggota badan (menggantung ke bawah)
+  // dan badan/kepala (menjulur ke atas). Semua `recline` pernah diberi nilai
+  // negatif dengan maksud "menyandar", padahal hasilnya membungkuk ke depan.
+  // Assert ini membandingkan posisi kepala dengan pinggul dalam arah hadap:
+  // kalau menyandar, kepala harus lebih ke BELAKANG daripada pinggul.
+  const sandar = (pose: string, nama: string, minimal: number) => {
+    apply(rig, pose, 0);
+    const kepala = wp(rig.head);
+    const pinggul = wp(rig.hip.R);
+    // Vektor "ke belakang" = kebalikan arah hadap, diambil dari rig itu sendiri.
+    const hadap = wp(rig.faceAhead).sub(wp(rig.face)).setY(0).normalize();
+    const mundur = kepala.clone().sub(pinggul).setY(0).dot(hadap.negate());
+    check(
+      `${nama}: kepala di belakang pinggul`,
+      mundur > minimal,
+      `selisih ${mundur.toFixed(3)} (negatif = membungkuk ke depan)`,
+    );
+  };
+
+  sandar("lounging", "bean bag", 0.1);
+  sandar("gaming", "sofa", 0.03);
+  sandar("reading", "kursi baca", 0.0);
+
+  // Kerja di meja justru HARUS condong ke depan, ke arah keyboard.
+  {
+    apply(rig, "working", 0);
+    const kepala = wp(rig.head);
+    const pinggul = wp(rig.hip.R);
+    const hadap = wp(rig.faceAhead).sub(wp(rig.face)).setY(0).normalize();
+    const maju = kepala.clone().sub(pinggul).setY(0).dot(hadap);
+    check(
+      "meja kerja: badan condong ke depan",
+      maju > 0,
+      `selisih ${maju.toFixed(3)} (negatif = menyandar menjauhi monitor)`,
+    );
+  }
 }
 
 /* ---- 7c. pembagian tempat: tidak boleh ada yang tindih ----------- */

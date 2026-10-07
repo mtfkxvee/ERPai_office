@@ -110,6 +110,11 @@ export function AgentChar({ agent, placement }: { agent: Agent; placement: Place
     }
 
     g.position.set(pos.current.x + shake, c.y, pos.current.z);
+    // Urutan HARUS Y dulu baru X. Default three.js (XYZ) mengenakan rotasi X di
+    // sumbu DUNIA, jadi begitu karakter menghadap ke samping, "menyandar"
+    // berubah jadi miring ke samping. Di sofa (hadap -90 derajat) efeknya
+    // total: komponen sandarannya nol.
+    body.current.rotation.order = "YXZ";
     body.current.rotation.x = c.recline;
     if (torso.current) torso.current.rotation.x = c.lean;
     if (hipL.current) hipL.current.rotation.x = c.hipL;
