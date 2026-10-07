@@ -1,0 +1,59 @@
+# Potongan buat ~/.hermes/profiles/<nama>/config.yaml
+#
+# GANTI `accounting` di argumen kedua tiap command dengan nama profile-nya.
+# Itu yang nentuin nama agent di office — payload Hermes nggak nyebut profile,
+# jadi harus dikirim manual. Kalau lupa diganti, keempat profile numpuk jadi
+# satu karakter.
+#
+# Argumen pertama = nama event. Hermes juga nggak ngirim nama event di payload
+# (implisit dari hook mana yang nembak), jadi ini pun harus ditulis manual dan
+# HARUS cocok dengan key di atasnya.
+#
+# matcher "*" = semua tool. timeout 6 detik, lebih longgar dari timeout curl
+# (5 detik) biar yang motong selalu curl, bukan Hermes.
+
+hooks:
+  on_session_start:
+    - matcher: "*"
+      command: /opt/data/office-report.sh on_session_start hermes/accounting
+      timeout: 6
+
+  pre_llm_call:
+    - matcher: "*"
+      command: /opt/data/office-report.sh pre_llm_call hermes/accounting
+      timeout: 6
+
+  pre_tool_call:
+    - matcher: "*"
+      command: /opt/data/office-report.sh pre_tool_call hermes/accounting
+      timeout: 6
+
+  post_tool_call:
+    - matcher: "*"
+      command: /opt/data/office-report.sh post_tool_call hermes/accounting
+      timeout: 6
+
+  pre_approval_request:
+    - matcher: "*"
+      command: /opt/data/office-report.sh pre_approval_request hermes/accounting
+      timeout: 6
+
+  api_request_error:
+    - matcher: "*"
+      command: /opt/data/office-report.sh api_request_error hermes/accounting
+      timeout: 6
+
+  on_session_end:
+    - matcher: "*"
+      command: /opt/data/office-report.sh on_session_end hermes/accounting
+      timeout: 6
+
+  on_session_finalize:
+    - matcher: "*"
+      command: /opt/data/office-report.sh on_session_finalize hermes/accounting
+      timeout: 6
+
+# Wajib. Tanpa ini, hook baru nunggu persetujuan lewat prompt TTY — dan run
+# lewat gateway/cron nggak punya TTY, jadi hook-nya nggak akan pernah jalan.
+# Setara dengan --accept-hooks atau HERMES_ACCEPT_HOOKS=1.
+hooks_auto_accept: true

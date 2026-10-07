@@ -163,7 +163,7 @@ def report(
 # Nama event hook Claude Code -> state office. Diambil dari dokumentasi resmi,
 # bukan dikira-kira: PermissionDenied, PostToolUseFailure, dan StopFailure itu
 # event yang beneran ada, jadi "ketahan" dan "error" nggak perlu ditebak.
-EVENT_STATE = {
+CLAUDE_CODE_EVENTS = {
 	"SessionStart": "idle",
 	"UserPromptSubmit": "thinking",
 	"UserPromptExpansion": "thinking",
@@ -180,9 +180,44 @@ EVENT_STATE = {
 	"SessionEnd": "idle",
 }
 
+# Nama event hook Hermes Agent (Nous Research) -> state office. Diambil dari
+# VALID_HOOKS dan _DEFAULT_PAYLOADS di dalam image-nya, bukan dari dokumentasi
+# luar. `on_session_end` ditentukan belakangan karena bisa jadi done atau error
+# tergantung flag di payload-nya.
+HERMES_EVENTS = {
+	"on_session_start": "idle",
+	"pre_llm_call": "thinking",
+	"post_llm_call": "working",
+	"pre_tool_call": "working",
+	"post_tool_call": "working",
+	"subagent_start": "working",
+	"subagent_stop": "working",
+	"post_approval_response": "working",
+	"pre_approval_request": "blocked",
+	"api_request_error": "error",
+	"on_session_end": "done",
+	"on_session_finalize": "idle",
+	"on_session_reset": "idle",
+	"agent_loop_stopped": "idle",
+}
+
+# Dua-duanya digabung jadi satu peta: nama event Claude Code (CamelCase) dan
+# Hermes (snake_case) nggak pernah bentrok, jadi satu endpoint cukup.
+EVENT_STATE = {**CLAUDE_CODE_EVENTS, **HERMES_EVENTS}
+
 # Event yang selalu ditulis ke log walau state-nya nggak berubah — ini
 # kejadian yang pengen ketahuan riwayatnya.
-ALWAYS_LOG = {"PostToolUseFailure", "StopFailure", "PermissionDenied", "SessionStart", "SessionEnd"}
+ALWAYS_LOG = {
+	"PostToolUseFailure",
+	"StopFailure",
+	"PermissionDenied",
+	"SessionStart",
+	"SessionEnd",
+	"api_request_error",
+	"pre_approval_request",
+	"on_session_start",
+	"on_session_end",
+}
 
 
 def _as_dict(value):
@@ -211,7 +246,25 @@ def _detail_from(event: str, payload: dict) -> str | None:
 		tool = payload.get("tool_name") or "tool"
 		return f"nunggu izin: {tool}" if event == "PermissionRequest" else f"izin ditolak: {tool}"
 
-	tool_input = _as_dict(payload.get("tool_input"))
+	# --- khusus Hermes ---
+	if event == "pre_approval_request":
+		return f"nunggu persetujuan: {payload.get('tool_name') or 'tool'}"
+	if event == "api_request_error":
+		err = payload.get("error") or payload.get("error_type") or ""
+		return str(err).strip().splitlines()[0] if err else "API error"
+	if event == "on_session_end":
+		if payload.get("failed"):
+			return "sesi gagal"
+		if payload.get("interrupted"):
+			return "sesi diputus"
+		return str(payload.get("turn_exit_reason") or "").strip() or None
+	if event == "pre_llm_call":
+		msg = str(payload.get("user_message") or "").strip()
+		return msg.splitlines()[0] if msg else None
+
+	# Claude Code pakai `tool_input`, Hermes pakai `args` — bentuknya sama-sama
+	# dict argumen tool, jadi dibaca dengan aturan yang sama.
+	tool_input = _as_dict(payload.get("tool_input")) or _as_dict(payload.get("args"))
 	if tool_input:
 		if tool_input.get("command"):
 			return str(tool_input["command"]).strip().splitlines()[0]
@@ -225,6 +278,8 @@ def _detail_from(event: str, payload: dict) -> str | None:
 
 	if payload.get("agent_type"):
 		return f"subagent: {payload['agent_type']}"
+	if payload.get("child_status"):
+		return f"subagent: {payload['child_status']}"
 	return None
 
 
@@ -255,13 +310,23 @@ def hook(**payload):
 	  2. hook `type: "http"` langsung ke endpoint ini (tanpa install apa-apa,
 	     tapi nahan tiap tool call selama nunggu respons)
 
+	Hermes Agent juga lewat sini. Bedanya: payload Hermes nggak nyebut nama
+	event-nya sama sekali (event-nya implisit dari hook mana yang nembak) dan
+	nggak nyebut profile-nya. Dua-duanya dikirim lewat query string:
+	`?event=pre_tool_call&agent=hermes/accounting`.
+
 	Event yang nggak ada di peta diabaikan dengan tenang — Claude Code punya
-	puluhan event, dan nggak semuanya ada artinya buat visualisasi.
+	puluhan event dan Hermes 41, nggak semuanya ada artinya buat visualisasi.
 	"""
-	event = str(payload.get("hook_event_name") or "").strip()
+	event = str(payload.get("hook_event_name") or payload.get("event") or "").strip()
 	state = EVENT_STATE.get(event)
 	if not state:
-		return {"ignored": event or "(tanpa hook_event_name)"}
+		return {"ignored": event or "(nama event tidak dikirim)"}
+
+	# Satu-satunya event yang state-nya nggak bisa ditentukan dari namanya saja:
+	# sesi Hermes yang berakhir bisa sukses, gagal, atau diputus.
+	if event == "on_session_end" and (payload.get("failed") or payload.get("interrupted")):
+		state = "error"
 
 	return _apply(
 		_agent_name(payload),

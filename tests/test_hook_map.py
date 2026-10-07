@@ -12,11 +12,47 @@ from pathlib import Path
 APP = Path(__file__).resolve().parent.parent
 
 # --- frappe palsu -------------------------------------------------------
+# Cukup lengkap supaya _apply() ikut kejalan, bukan cuma fungsi pemetaannya.
+# Semua tulisan ditampung di memori, nggak ada DB yang disentuh.
+WRITES = {"agents": {}, "activity": []}
+
+
+class _FakeDoc:
+    def __init__(self, data=None):
+        self.__dict__.update(data or {})
+
+    def insert(self, *a, **k):
+        if getattr(self, "doctype", None) == "AI Agent Activity":
+            WRITES["activity"].append(dict(self.__dict__))
+        else:
+            WRITES["agents"][getattr(self, "agent_name", "?")] = dict(self.__dict__)
+        return self
+
+
+class _FakeDB:
+    def exists(self, *a, **k):
+        return False
+
+    def get_value(self, *a, **k):
+        return None
+
+    def set_value(self, *a, **k):
+        return None
+
+    def count(self, *a, **k):
+        return 0
+
+
 frappe = types.ModuleType("frappe")
 frappe.parse_json = json.loads
 frappe.get_request_header = lambda *a, **k: None
 frappe.whitelist = lambda *a, **k: (lambda f: f)
 frappe.throw = lambda msg: (_ for _ in ()).throw(RuntimeError(msg))
+frappe.db = _FakeDB()
+frappe.new_doc = lambda dt: _FakeDoc({"doctype": dt})
+frappe.get_doc = lambda d: _FakeDoc(d)
+frappe.get_all = lambda *a, **k: []
+frappe.publish_realtime = lambda *a, **k: None
 frappe.utils = types.ModuleType("frappe.utils")
 frappe.utils.now_datetime = lambda: None
 frappe.model = types.ModuleType("frappe.model")
@@ -121,6 +157,81 @@ check("tanpa param, pakai nama folder", api._agent_name({"cwd": "/home/lthv/frap
 check("folder dengan slash di ujung", api._agent_name({"cwd": "/proj/pos_next/"}), "cc/pos_next")
 check("path Windows", api._agent_name({"cwd": r"C:\Users\User\Downloads\TEST CLAUDE"}), "cc/TEST CLAUDE")
 check("tanpa apa-apa -> default", api._agent_name({}), "claude-code")
+
+print("\nHermes: event -> state")
+for event, want in [
+    ("on_session_start", "idle"),
+    ("pre_llm_call", "thinking"),
+    ("pre_tool_call", "working"),
+    ("post_tool_call", "working"),
+    ("pre_approval_request", "blocked"),
+    ("api_request_error", "error"),
+    ("on_session_end", "done"),
+    ("on_session_finalize", "idle"),
+    ("agent_loop_stopped", "idle"),
+]:
+    check(event, api.EVENT_STATE.get(event), want)
+
+print("\nHermes: nama event Hermes & Claude Code tidak bentrok")
+bentrok = sorted(set(api.CLAUDE_CODE_EVENTS) & set(api.HERMES_EVENTS))
+check("tidak ada nama yang tabrakan", bentrok, [])
+check(
+    "peta gabungan memuat keduanya",
+    len(api.EVENT_STATE),
+    len(api.CLAUDE_CODE_EVENTS) + len(api.HERMES_EVENTS),
+)
+
+print("\nHermes: sesi berakhir - done vs error")
+check("selesai normal -> done", api.hook(event="on_session_end", agent="x", completed=True)["state"], "done")
+check("gagal -> error", api.hook(event="on_session_end", agent="x", failed=True)["state"], "error")
+check("diputus -> error", api.hook(event="on_session_end", agent="x", interrupted=True)["state"], "error")
+
+print("\nHermes: nama event lewat query string (payload Hermes tidak membawanya)")
+check("param 'event' dipakai", api.hook(event="pre_tool_call", agent="x")["state"], "working")
+check(
+    "tanpa nama event -> diabaikan, bukan error",
+    "ignored" in api.hook(agent="x", session_id="s1"),
+    True,
+)
+check(
+    "hook_event_name tetap menang kalau dua-duanya ada",
+    api.hook(hook_event_name="Stop", event="pre_tool_call", agent="x")["state"],
+    "done",
+)
+
+print("\nHermes: keterangan label dari payload-nya sendiri")
+check(
+    "args.command (Hermes) kebaca sama seperti tool_input (Claude Code)",
+    api._detail_from("pre_tool_call", {"tool_name": "terminal", "args": {"command": "bench migrate\nbaris2"}}),
+    "bench migrate",
+)
+check(
+    "args.path -> nama file saja",
+    api._detail_from("post_tool_call", {"tool_name": "write_file", "args": {"path": "/opt/data/notes/report.txt"}}),
+    "report.txt",
+)
+check(
+    "nunggu persetujuan nyebut tool-nya",
+    api._detail_from("pre_approval_request", {"tool_name": "terminal"}),
+    "nunggu persetujuan: terminal",
+)
+check(
+    "pre_llm_call -> baris pertama pesan user",
+    api._detail_from("pre_llm_call", {"user_message": "tolong cek stok\nbaris kedua"}),
+    "tolong cek stok",
+)
+check("sesi gagal", api._detail_from("on_session_end", {"failed": True}), "sesi gagal")
+check("sesi diputus", api._detail_from("on_session_end", {"interrupted": True}), "sesi diputus")
+check(
+    "sesi normal -> alasan keluarnya",
+    api._detail_from("on_session_end", {"completed": True, "turn_exit_reason": "text_response(stop)"}),
+    "text_response(stop)",
+)
+check(
+    "subagent_stop -> status anaknya",
+    api._detail_from("subagent_stop", {"child_status": "completed"}),
+    "subagent: completed",
+)
 
 print("\npemotongan keterangan panjang")
 long = "x" * 500
