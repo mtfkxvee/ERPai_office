@@ -58,7 +58,6 @@ function readStdin() {
 
 async function send(cfg, payload) {
   const url = new URL(`${cfg.url}/api/method/xsha_office.api.hook`);
-  if (cfg.agent) url.searchParams.set("agent", cfg.agent);
 
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), TIMEOUT_MS);
@@ -69,6 +68,11 @@ async function send(cfg, payload) {
       headers: {
         "Content-Type": "application/json",
         Authorization: `token ${cfg.token}`,
+        // Nama agent lewat HEADER, bukan query string. Query string hilang
+        // kalau request bawa body JSON — Frappe mengganti form_dict dengan isi
+        // body. Dulu di sini pakai ?agent= dan nama yang dikonfigurasi
+        // diabaikan diam-diam, jatuh ke tebakan dari nama folder kerja.
+        ...(cfg.agent ? { "X-Office-Agent": cfg.agent } : {}),
       },
       body: JSON.stringify(payload),
     });

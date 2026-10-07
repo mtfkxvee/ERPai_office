@@ -45,7 +45,8 @@ class _FakeDB:
 
 frappe = types.ModuleType("frappe")
 frappe.parse_json = json.loads
-frappe.get_request_header = lambda *a, **k: None
+HEADERS: dict[str, str] = {}
+frappe.get_request_header = lambda name, *a, **k: HEADERS.get(name)
 frappe.whitelist = lambda *a, **k: (lambda f: f)
 frappe.throw = lambda msg: (_ for _ in ()).throw(RuntimeError(msg))
 frappe.db = _FakeDB()
@@ -231,6 +232,38 @@ check(
     "subagent_stop -> status anaknya",
     api._detail_from("subagent_stop", {"child_status": "completed"}),
     "subagent: completed",
+)
+
+print("\nheader: event & agent HARUS bisa lewat header")
+# Kenapa ini diuji: query string HILANG kalau request bawa body JSON (Frappe
+# mengganti form_dict dengan isi body). Hook agent selalu bawa body, jadi dulu
+# ?event=/?agent= ditelan diam-diam dan laporannya nggak pernah masuk.
+HEADERS.clear()
+HEADERS["X-Office-Event"] = "pre_tool_call"
+HEADERS["X-Office-Agent"] = "hermes/accounting"
+r = api.hook(session_id="s", tool_name="terminal", args={"command": "ls -la"})
+check("event terbaca dari header", r.get("state"), "working")
+check("agent terbaca dari header", r.get("agent"), "hermes/accounting")
+check("detail tetap dari body", r.get("detail"), "ls -la")
+
+HEADERS.clear()
+HEADERS["X-Office-Agent"] = "hermes/marketing"
+check(
+    "header agent mengalahkan tebakan nama folder",
+    api._agent_name({"cwd": "/home/lthv/frappe-bench"}),
+    "hermes/marketing",
+)
+
+HEADERS.clear()
+check(
+    "tanpa header & tanpa event -> diabaikan, bukan error",
+    "ignored" in api.hook(session_id="s", tool_name="terminal"),
+    True,
+)
+check(
+    "tanpa header agent, tebakan folder tetap jalan",
+    api._agent_name({"cwd": "/proj/pos_next"}),
+    "cc/pos_next",
 )
 
 print("\npemotongan keterangan panjang")

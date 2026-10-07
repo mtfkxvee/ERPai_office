@@ -35,12 +35,20 @@ TOKEN_FILE="/opt/data/.office-token"
 TOKEN=$(head -n1 "$TOKEN_FILE" | tr -d '\r\n')
 [ -n "$TOKEN" ] || exit 0
 
+# Nama event & agent dikirim lewat HEADER, bukan query string.
+#
+# Query string HILANG kalau request bawa body JSON — Frappe mengganti form_dict
+# dengan isi body, jadi ?event=...&agent=... lenyap tanpa pesan error apa pun.
+# Ini pernah kejadian dan bikin laporan ditelan diam-diam. Header selamat.
+#
 # --data-binary @- : teruskan stdin apa adanya tanpa diutak-atik shell.
 curl -s -o /dev/null -m 5 \
   -X POST \
   -H 'Content-Type: application/json' \
   -H "Authorization: token $TOKEN" \
+  -H "X-Office-Event: $EVENT" \
+  -H "X-Office-Agent: $AGENT" \
   --data-binary @- \
-  "$URL?event=$EVENT&agent=$AGENT" 2>/dev/null
+  "$URL" 2>/dev/null
 
 exit 0

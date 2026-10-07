@@ -289,7 +289,10 @@ def _agent_name(payload: dict) -> str:
 	Nama folder dipakai karena biasanya itu yang paling masuk akal: satu project
 	satu agent, jadi di office kelihatan project mana yang sedang jalan.
 	"""
-	explicit = payload.get("agent") or frappe.get_request_header("X-Office-Agent")
+	# Header didahulukan: query string HILANG kalau request-nya bawa body JSON
+	# (Frappe mengganti form_dict dengan isi body), dan hook agent selalu bawa
+	# body. Diuji 7 Okt 2026 — lihat catatan di hook().
+	explicit = frappe.get_request_header("X-Office-Agent") or payload.get("agent")
 	if explicit:
 		return str(explicit).strip()[:120]
 
@@ -312,13 +315,27 @@ def hook(**payload):
 
 	Hermes Agent juga lewat sini. Bedanya: payload Hermes nggak nyebut nama
 	event-nya sama sekali (event-nya implisit dari hook mana yang nembak) dan
-	nggak nyebut profile-nya. Dua-duanya dikirim lewat query string:
-	`?event=pre_tool_call&agent=hermes/accounting`.
+	nggak nyebut profile-nya. Dua-duanya dikirim lewat HEADER:
+	`X-Office-Event` dan `X-Office-Agent`.
+
+	KENAPA HEADER, BUKAN QUERY STRING — ini pernah salah dan diam-diam nggak
+	jalan. Kalau request bawa body JSON, Frappe MENGGANTI form_dict dengan isi
+	body itu, jadi `?event=...&agent=...` hilang total tanpa pesan error apa
+	pun. Hook agent selalu bawa body. Diukur 7 Okt 2026:
+	    query string + body JSON  -> {"ignored": "(nama event tidak dikirim)"}
+	    semuanya di dalam body    -> jalan
+	    query string tanpa body   -> jalan
+	Header dibaca lewat jalur yang beda dan selamat dari body JSON.
 
 	Event yang nggak ada di peta diabaikan dengan tenang — Claude Code punya
 	puluhan event dan Hermes 41, nggak semuanya ada artinya buat visualisasi.
 	"""
-	event = str(payload.get("hook_event_name") or payload.get("event") or "").strip()
+	event = str(
+		payload.get("hook_event_name")
+		or frappe.get_request_header("X-Office-Event")
+		or payload.get("event")
+		or ""
+	).strip()
 	state = EVENT_STATE.get(event)
 	if not state:
 		return {"ignored": event or "(nama event tidak dikirim)"}

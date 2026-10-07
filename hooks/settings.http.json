@@ -13,8 +13,11 @@
     "allowedEnvVars itu wajib — tanpa itu, $XSHA_OFFICE_TOKEN diganti string",
     "kosong dan semua request ketolak 401 tanpa pesan apa-apa.",
     "",
-    "Ganti nama agent di query string ?agent= sesuai selera. Kalau dihapus,",
-    "server nebak dari nama folder kerja (jadi 'cc/nama-project')."
+    "Nama agent dikirim lewat header X-Office-Agent, BUKAN query string. Query",
+    "string hilang kalau request bawa body JSON (Frappe mengganti form_dict",
+    "dengan isi body), dan hook selalu bawa body — dulu pakai ?agent= dan",
+    "namanya diabaikan diam-diam. Hapus header itu kalau mau server nebak dari",
+    "nama folder kerja (jadi 'cc/nama-project')."
   ],
   "hooks": {
     "UserPromptSubmit": [
@@ -22,9 +25,12 @@
         "hooks": [
           {
             "type": "http",
-            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook",
             "timeout": 5,
-            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "headers": {
+              "Authorization": "token $XSHA_OFFICE_TOKEN",
+              "X-Office-Agent": "claude-code"
+            },
             "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
           }
         ]
@@ -36,9 +42,12 @@
         "hooks": [
           {
             "type": "http",
-            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook",
             "timeout": 5,
-            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "headers": {
+              "Authorization": "token $XSHA_OFFICE_TOKEN",
+              "X-Office-Agent": "claude-code"
+            },
             "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
           }
         ]
@@ -50,9 +59,12 @@
         "hooks": [
           {
             "type": "http",
-            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook",
             "timeout": 5,
-            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "headers": {
+              "Authorization": "token $XSHA_OFFICE_TOKEN",
+              "X-Office-Agent": "claude-code"
+            },
             "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
           }
         ]
@@ -63,9 +75,12 @@
         "hooks": [
           {
             "type": "http",
-            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook",
             "timeout": 5,
-            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "headers": {
+              "Authorization": "token $XSHA_OFFICE_TOKEN",
+              "X-Office-Agent": "claude-code"
+            },
             "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
           }
         ]
@@ -76,9 +91,12 @@
         "hooks": [
           {
             "type": "http",
-            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook?agent=claude-code",
+            "url": "https://erp.x-sha.id/api/method/xsha_office.api.hook",
             "timeout": 5,
-            "headers": { "Authorization": "token $XSHA_OFFICE_TOKEN" },
+            "headers": {
+              "Authorization": "token $XSHA_OFFICE_TOKEN",
+              "X-Office-Agent": "claude-code"
+            },
             "allowedEnvVars": ["XSHA_OFFICE_TOKEN"]
           }
         ]
