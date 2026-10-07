@@ -26,7 +26,7 @@
 
 EVENT="$1"
 AGENT="$2"
-SOUL="$3"   # opsional: path SOUL.md, buat ambil nama tampilan
+PROFILE_DIR="$3"   # opsional: folder profile Hermes, buat ambil nama tampilan
 URL="https://erp.x-sha.id/api/method/xsha_office.api.hook"
 TOKEN_FILE="/opt/data/.office-token"
 
@@ -46,15 +46,32 @@ log "mulai event='$EVENT' agent='$AGENT' argc=$#"
 TOKEN=$(head -n1 "$TOKEN_FILE" | tr -d '\r\n')
 [ -n "$TOKEN" ] || { log "berhenti: token kosong"; exit 0; }
 
-# Nama tampilan = baris judul pertama di SOUL.md, misalnya "# Rina".
-# Kalau SOUL.md nggak ada atau nggak punya baris judul, dibiarkan kosong dan
-# office memakai nama agent apa adanya. Sengaja nggak memaksa: SOUL.md itu
-# prompt kepribadian, bukan file konfigurasi.
+# Nama tampilan agent, dicari di dua tempat secara berurutan.
+#
+# $3 = folder profile Hermes, misal /opt/data/profiles/admin-deputygm
+#
+# 1. SOUL.md, baris judul pertama ("# Nadia"). Ini cara yang eksplisit dan
+#    selalu menang kalau ada.
+# 2. memories/MEMORY.md, nama dalam tanda kutip setelah kata "name" — bentuk
+#    yang dipakai Hermes sendiri waktu menyimpan identitasnya, misalnya
+#    "go by the name 'SunTzu'".
+#
+# memories/USER.md SENGAJA TIDAK DIBACA. Isinya identitas MANUSIA yang ngobrol
+# dengan agent ("Name: <nama asli>. Role: ..."), bukan nama agent. Halaman
+# office kebuka untuk semua pemegang akses Desk ERPNext, jadi nama orang asli
+# nggak boleh nyasar jadi label karakter.
 NAME=""
-if [ -n "$SOUL" ] && [ -r "$SOUL" ]; then
-  NAME=$(grep -m1 '^#[[:space:]]' "$SOUL" 2>/dev/null | sed 's/^#[[:space:]]*//' | cut -c1-140)
+if [ -n "$PROFILE_DIR" ]; then
+  if [ -r "$PROFILE_DIR/SOUL.md" ]; then
+    NAME=$(grep -m1 '^#[[:space:]]' "$PROFILE_DIR/SOUL.md" 2>/dev/null | sed 's/^#[[:space:]]*//')
+  fi
+  if [ -z "$NAME" ] && [ -r "$PROFILE_DIR/memories/MEMORY.md" ]; then
+    NAME=$(sed -n "s/.*[Nn]ame[^'\"]*['\"]\([^'\"]\{1,40\}\)['\"].*/\1/p" \
+             "$PROFILE_DIR/memories/MEMORY.md" 2>/dev/null | head -1)
+  fi
+  NAME=$(printf '%s' "$NAME" | tr -d '\r\n' | cut -c1-140)
 fi
-log "nama dari SOUL.md: [$NAME]"
+log "nama tampilan: [$NAME]"
 
 # Nama event & agent dikirim lewat HEADER, bukan query string.
 #

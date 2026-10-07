@@ -90,6 +90,23 @@ docker exec hermes hermes -p accounting hooks doctor
 `doctor` ngecek exec bit, status allowlist, validitas JSON, dan waktu jalan
 sintetisnya. Itu pengecekan yang lebih berguna daripada nebak.
 
+## Nama yang tampil di office
+
+Dicari berurutan, yang pertama ketemu menang:
+
+1. **`SOUL.md`**, baris judul pertama — `# Nadia`. Cara eksplisit, selalu menang.
+2. **`memories/MEMORY.md`**, nama dalam tanda kutip setelah kata "name". Ini
+   bentuk yang dipakai Hermes sendiri waktu menyimpan identitasnya, misalnya
+   `go by the name 'SunTzu'`.
+3. Kalau dua-duanya kosong, office memakai id agent apa adanya
+   (`hermes/accounting`).
+
+**`memories/USER.md` sengaja TIDAK dibaca.** Isinya identitas MANUSIA yang
+ngobrol dengan agent (`Name: <nama asli>. Role: ...`), bukan nama agent.
+Halaman office kebuka untuk semua pemegang akses Desk ERPNext, jadi nama orang
+asli nggak boleh nyasar jadi label karakter. Diuji terhadap data asli: profile
+`admin-deputygm` menghasilkan `SunTzu`, bukan nama pemiliknya.
+
 ## Yang perlu kamu tau
 
 **`hooks_auto_accept: true` itu wajib, bukan opsional.** Hook baru minta
