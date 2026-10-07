@@ -68,10 +68,19 @@ def _ensure_user() -> bool:
 	user = frappe.new_doc("User")
 	user.email = EMAIL
 	user.first_name = FULL_NAME
-	# Harus System User: Website User nggak bisa akses DocType lewat API.
-	user.user_type = "System User"
 	user.enabled = 1
 	user.send_welcome_email = 0
+	# user_type sengaja TIDAK diset.
+	#
+	# Frappe menentukannya sendiri dari role: kalau nggak ada satu pun role
+	# dengan desk_access=1, user-nya jadi "Website User". Karena ROLE di atas
+	# dibuat desk_access=0, user ini otomatis jadi Website User — dan itu
+	# memang yang diinginkan: dia nggak bisa buka Desk sama sekali.
+	#
+	# Diuji 7 Okt 2026: Website User TETAP bisa baca/tulis doctype lewat REST
+	# API selama permission role-nya mengizinkan. Jadi jangan "perbaiki" ini
+	# dengan memaksa System User — itu justru melonggarkan, dan Frappe akan
+	# menurunkannya lagi selama role-nya tanpa desk access.
 	user.insert(ignore_permissions=True)
 	return True
 
