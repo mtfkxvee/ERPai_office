@@ -21,7 +21,7 @@ import {
 import { RelaxRoom } from "./relax";
 import { carpetTexture, parquetTexture, runnerTexture, wallTexture } from "./textures";
 import type { Agent, AgentState } from "./types";
-import { displayPose, effectiveState } from "./store";
+import { effectiveState, type Placement } from "./store";
 
 const SKIRTING = "#c3bdb2";
 const WALL_TOP = 3.1;
@@ -186,7 +186,13 @@ function Shell() {
   );
 }
 
-export function Office({ agents }: { agents: Agent[] }) {
+export function Office({
+  agents,
+  placements,
+}: {
+  agents: Agent[];
+  placements: Map<string, Placement>;
+}) {
   // Layar monitor nyala sesuai state agent yang duduk di meja itu, dan TV di
   // lounge nyala cuma kalau ada yang beneran main.
   const { stateByDesk, tvOn } = useMemo(() => {
@@ -196,10 +202,10 @@ export function Office({ agents }: { agents: Agent[] }) {
     for (const a of agents) {
       const idx = ((a.desk_index % DESK_COUNT) + DESK_COUNT) % DESK_COUNT;
       map.set(idx, effectiveState(a, now));
-      if (displayPose(a, now) === "gaming") gaming = true;
+      if (placements.get(a.agent)?.pose === "gaming") gaming = true;
     }
     return { stateByDesk: map, tvOn: gaming };
-  }, [agents]);
+  }, [agents, placements]);
 
   return (
     <group>

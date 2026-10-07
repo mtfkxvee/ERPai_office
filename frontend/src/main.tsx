@@ -1,6 +1,6 @@
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import * as THREE from "three";
 import { AgentChar } from "./AgentChar";
@@ -8,7 +8,7 @@ import { hasFrappe, loadInitial, startDemo, subscribe } from "./erp";
 import { Hud } from "./Hud";
 import { ROOM } from "./layout";
 import { Office } from "./Office";
-import { useAgents } from "./store";
+import { resolvePoses, useAgents } from "./store";
 
 const TARGET: [number, number, number] = [ROOM.w / 2, 1.1, ROOM.d / 2];
 
@@ -41,6 +41,9 @@ function Lighting() {
 
 function App() {
   const agents = useAgents();
+  // Dihitung sekali untuk semua agent: pose DAN tempat duduknya, supaya nggak
+  // ada dua karakter di titik yang sama.
+  const placements = useMemo(() => resolvePoses(agents, Date.now()), [agents]);
   const [demo] = useState(() => !hasFrappe());
   const [error, setError] = useState<string | null>(null);
 
@@ -66,10 +69,11 @@ function App() {
         <fog attach="fog" args={["#ccdce6", 60, 130]} />
         <Lighting />
 
-        <Office agents={agents} />
-        {agents.map((a) => (
-          <AgentChar key={a.agent} agent={a} />
-        ))}
+        <Office agents={agents} placements={placements} />
+        {agents.map((a) => {
+          const pl = placements.get(a.agent);
+          return pl ? <AgentChar key={a.agent} agent={a} placement={pl} /> : null;
+        })}
 
         <OrbitControls
           target={TARGET}
@@ -82,7 +86,7 @@ function App() {
         />
       </Canvas>
 
-      <Hud agents={agents} demo={demo} />
+      <Hud agents={agents} placements={placements} demo={demo} />
 
       {error && (
         <div

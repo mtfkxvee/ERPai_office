@@ -4,7 +4,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { BED, postureFor, routeTo, targetFor } from "./layout";
 import { facingFor, poseJoints, RIG, ZERO_JOINTS, type Joints } from "./poses";
-import { colorOf, displayPose, idleText } from "./store";
+import { colorOf, idleText, type Placement } from "./store";
 import type { Agent, Pose } from "./types";
 
 const SKIN = "#d9a06b";
@@ -29,7 +29,7 @@ const STATE_LABEL: Record<Pose, { text: string; color: string }> = {
 
 /** Karakter bersendi (lutut & siku) yang bisa duduk, main PS, dan rebahan.
  * Angka rig-nya dari poses.ts, dipakai bareng sama `npm run verify`. */
-export function AgentChar({ agent }: { agent: Agent }) {
+export function AgentChar({ agent, placement }: { agent: Agent; placement: Placement }) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const labelAnchor = useRef<THREE.Group>(null);
@@ -47,7 +47,7 @@ export function AgentChar({ agent }: { agent: Agent }) {
   const pad = useRef<THREE.Group>(null);
 
   const shirt = colorOf(agent);
-  const spawn = targetFor(agent.state, agent.desk_index);
+  const spawn = targetFor(placement.pose, placement.slot);
   const pos = useRef(new THREE.Vector3(spawn.x, 0, spawn.z));
   const cur = useRef<Joints>({ ...ZERO_JOINTS });
   // Rute yang sedang dijalanin. Isinya >1 titik kalau harus lewat pintu.
@@ -62,8 +62,11 @@ export function AgentChar({ agent }: { agent: Agent }) {
     const dt = Math.min(dtRaw, 0.1);
     const t = performance.now() / 1000;
 
-    const pose = displayPose(agent, Date.now());
-    const goal = targetFor(pose, agent.desk_index);
+    // Pose & tempat duduk ditentukan resolvePoses() untuk semua agent
+    // sekaligus — tidak boleh dihitung sendiri di sini, nanti dua agent bisa
+    // memilih tempat yang sama.
+    const pose = placement.pose;
+    const goal = targetFor(pose, placement.slot);
 
     // Tujuan ganti -> hitung ulang rutenya (bisa mampir ke pintu dulu).
     const goalKey = `${goal.x},${goal.z}`;
@@ -131,7 +134,7 @@ export function AgentChar({ agent }: { agent: Agent }) {
   });
 
   const now = Date.now();
-  const pose = displayPose(agent, now);
+  const pose = placement.pose;
   const badge = STATE_LABEL[pose];
   const idle = idleText(agent, now);
 

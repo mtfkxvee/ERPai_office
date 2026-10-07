@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LEISURE_POSES, type Agent, type AgentState, type OfficeEvent, type Pose } from "./types";
+import { LEISURE_POSES, type Agent, type AgentState, type OfficeEvent, type Pose } from "./types.ts";
 
 /** Store mini, tanpa dependency. Cuma Map + listener. */
 
@@ -61,39 +61,112 @@ export function effectiveState(a: Agent, now: number): AgentState {
   return a.state;
 }
 
-/* Ambang buat mecah `idle` jadi tiga tempat yang beda.
+/* Batas antara "baru saja nganggur" dan "sudah lama".
  *
- * Ini bukan state baru — cuma cara baca lamanya nggak ada kabar. Agent yang
- * nunggu sebentar beda tempat sama agent yang sesinya udah mati, jadi sekali
- * lihat kelihatan mana yang mana. */
+ * Di bawah ambang ini agent berdiri di pantry — seolah lagi jeda sebentar.
+ * Di atasnya, dia dapat tempat santai dari LEISURE_PLAN.
+ *
+ * Lamanya nganggur TIDAK lagi bisa dibaca dari tempat duduknya (tempat dibagi
+ * supaya nggak tumpuk, bukan menurut durasi). Angkanya ada di idleText(). */
 const IDLE_PANTRY_MS = 45 * 1000;
-const IDLE_LOUNGE_MS = 4 * 60 * 1000;
 
-/** Hash nama agent -> angka. Dipakai supaya pilihan pose santai STABIL per
- * agent: kalau diacak tiap render, karakternya bakal loncat-loncat. */
-function hashName(s: string): number {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return h;
+/** Urutan pembagian tempat santai.
+ *
+ * Diselang-seling antar zona, bukan diisi satu zona sampai penuh dulu — biar
+ * ruangannya kelihatan terpakai merata, bukan semua numpuk di sofa.
+ *
+ * `pair: true` artinya atomik: ping pong cuma dipakai kalau ADA DUA agent yang
+ * bisa mengisinya. Satu orang main ping pong sendirian kelihatan aneh. */
+const LEISURE_PLAN: { pose: Pose; slot: number; pair?: boolean }[] = [
+  { pose: "gaming", slot: 0 },
+  { pose: "lounging", slot: 0 },
+  { pose: "pingpong", slot: 0, pair: true },
+  { pose: "sleeping", slot: 0 },
+  { pose: "reading", slot: 0 },
+  { pose: "gaming", slot: 1 },
+  { pose: "lounging", slot: 1 },
+  { pose: "sleeping", slot: 1 },
+  { pose: "gaming", slot: 2 },
+  { pose: "lounging", slot: 2 },
+  { pose: "sleeping", slot: 2 },
+  { pose: "lounging", slot: 3 },
+];
+
+export type Placement = { pose: Pose; slot: number };
+
+/** Tentukan pose DAN tempat duduk setiap agent sekaligus.
+ *
+ * Harus dihitung untuk SEMUA agent bersamaan, bukan satu per satu — kalau tiap
+ * agent milih sendiri (misal dari hash namanya), dua agent bisa memilih tempat
+ * yang sama dan karakternya tindih-menindih. Itu yang terjadi sebelum ini.
+ *
+ * Urutannya ditentukan nama agent (bukan urutan data dari server), supaya
+ * pembagiannya stabil dan nggak berubah tiap kali data masuk.
+ */
+export function resolvePoses(agents: Agent[], now: number): Map<string, Placement> {
+  const out = new Map<string, Placement>();
+  const leisure: Agent[] = [];
+  // Pemakaian tiap zona berdiri, biar yang sama-sama mikir nggak satu titik.
+  const used: Record<string, number> = {};
+  const nextSlot = (pose: string) => (used[pose] = (used[pose] ?? -1) + 1);
+
+  const sorted = [...agents].sort((a, b) => a.agent.localeCompare(b.agent));
+
+  for (const a of sorted) {
+    const state = effectiveState(a, now);
+
+    if (state === "working" || state === "done") {
+      // Punya mejanya sendiri, nggak mungkin tabrakan.
+      out.set(a.agent, { pose: state, slot: a.desk_index });
+      continue;
+    }
+    if (state !== "idle") {
+      out.set(a.agent, { pose: state, slot: nextSlot(state) });
+      continue;
+    }
+    if (now - a.seen < IDLE_PANTRY_MS) {
+      out.set(a.agent, { pose: "idle", slot: nextSlot("idle") });
+      continue;
+    }
+    leisure.push(a);
+  }
+
+  // Bagikan tempat santai menurut rencana di atas.
+  //
+  // CATATAN: tempat mana yang didapat seorang agent NGGAK berarti apa-apa —
+  // ini murni biar ruangannya nggak kelihatan kayak kamar mayat. Informasi
+  // yang sebenarnya (sudah berapa lama nggak ada kabar) ada di idleText().
+  // Jangan baca "lagi main PS" sebagai "baru saja nganggur".
+  let i = 0;
+  for (const entry of LEISURE_PLAN) {
+    if (i >= leisure.length) break;
+    if (entry.pair) {
+      // Butuh dua. Kalau cuma sisa satu, lewati — biar nggak main sendirian.
+      if (leisure.length - i < 2) continue;
+      out.set(leisure[i++].agent, { pose: entry.pose, slot: 0 });
+      out.set(leisure[i++].agent, { pose: entry.pose, slot: 1 });
+      continue;
+    }
+    out.set(leisure[i++].agent, { pose: entry.pose, slot: entry.slot });
+  }
+
+  // Lebih banyak agent daripada tempat duduk: sisanya berdiri di pantry,
+  // berjajar. Lebih jujur daripada menumpuk mereka di kursi yang sama.
+  let extra = 0;
+  while (i < leisure.length) {
+    out.set(leisure[i++].agent, { pose: "idle", slot: nextSlot("idle") + extra++ });
+  }
+
+  return out;
 }
 
-/** Pose yang dipakai buat nentuin posisi & animasi karakter. */
+/** Pose satu agent saja. Dipakai di tempat yang nggak punya daftar lengkap. */
 export function displayPose(a: Agent, now: number): Pose {
   const state = effectiveState(a, now);
   if (state !== "idle") return state;
-
   const idle = now - a.seen;
   if (idle < IDLE_PANTRY_MS) return "idle";
-  if (idle < IDLE_LOUNGE_MS) return "gaming";
-
-  // Nganggur lama: disebar ke berbagai tempat santai, bukan numpuk semua di
-  // kasur. Pilihannya dari nama agent, jadi tetap sama tiap kali dirender.
-  //
-  // CATATAN PENTING: pose mana yang kena di sini NGGAK berarti apa-apa — ini
-  // murni biar ruangannya nggak kelihatan kayak kamar mayat. Informasi yang
-  // sebenarnya (sudah berapa lama nggak ada kabar) pindah ke label, lihat
-  // idleText() di bawah. Jangan baca "lagi main PS" sebagai "baru nganggur".
-  return LEISURE_POSES[hashName(a.agent) % LEISURE_POSES.length];
+  return LEISURE_POSES[0];
 }
 
 /** Berapa lama agent ini nggak ngasih kabar, dalam bahasa manusia.

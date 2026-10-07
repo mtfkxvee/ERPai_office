@@ -1,4 +1,4 @@
-import { displayPose, idleText } from "./store";
+import { idleText, type Placement } from "./store";
 import type { Agent, Pose } from "./types";
 
 const DOT: Record<Pose, { c: string; label: string }> = {
@@ -29,7 +29,15 @@ const panel: React.CSSProperties = {
   maxWidth: 280,
 };
 
-export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
+export function Hud({
+  agents,
+  placements,
+  demo,
+}: {
+  agents: Agent[];
+  placements: Map<string, Placement>;
+  demo: boolean;
+}) {
   const now = Date.now();
   return (
     <>
@@ -48,7 +56,7 @@ export function Hud({ agents, demo }: { agents: Agent[]; demo: boolean }) {
         )}
 
         {agents.map((a) => {
-          const p = displayPose(a, now);
+          const p = placements.get(a.agent)?.pose ?? "idle";
           const d = DOT[p];
           const idle = idleText(a, now);
           return (

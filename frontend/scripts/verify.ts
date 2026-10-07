@@ -17,6 +17,7 @@ import * as THREE from "three";
 import {
   BEANBAG_SPOTS,
   beanbagSpot,
+  CAPACITY,
   BED,
   bedSpot,
   CHAIR,
@@ -43,6 +44,7 @@ import {
 } from "../src/layout.ts";
 import { DESK_SEAT, facingFor, poseJoints, RIG } from "../src/poses.ts";
 import { LEISURE_POSES } from "../src/types.ts";
+import { resolvePoses } from "../src/store.ts";
 
 /* ---------------------------------------------------------------- */
 /* Rig: hierarki yang sama persis dengan JSX di AgentChar.tsx        */
@@ -445,6 +447,87 @@ console.log("\ntempat santai (buat agent yang lama nggak ada kabar)");
     tujuan.size,
     LEISURE_POSES.length,
   );
+}
+
+/* ---- 7c. pembagian tempat: tidak boleh ada yang tindih ----------- */
+console.log("\npembagian tempat (jangan ada karakter tumpuk)");
+{
+  const agen = (n: number, idleDetik: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      agent: `agent-${String(i).padStart(2, "0")}`,
+      desk_index: i,
+      state: "idle" as const,
+      seen: Date.now() - idleDetik * 1000,
+      tool: null,
+      detail: null,
+      color: null,
+    }));
+
+  const titik = (p: { pose: string; slot: number }) => {
+    const t = targetFor(p.pose as never, p.slot);
+    return `${t.x.toFixed(2)},${t.z.toFixed(2)}`;
+  };
+
+  for (const n of [1, 2, 3, 5, 7, 12, 13]) {
+    const map = resolvePoses(agen(n, 600), Date.now());
+    const titikDipakai = [...map.values()].map(titik);
+    const unik = new Set(titikDipakai);
+    check(
+      `${String(n).padStart(2)} agent nganggur -> ${unik.size} titik berbeda`,
+      unik.size === n,
+      `ada ${n - unik.size} karakter yang tumpuk`,
+    );
+  }
+
+  // Kapasitas tiap zona tidak boleh dilampaui.
+  let muat = true;
+  let det = "";
+  for (const n of [5, 9, 13, 20]) {
+    const map = resolvePoses(agen(n, 600), Date.now());
+    const hitung: Record<string, number> = {};
+    for (const p of map.values()) hitung[p.pose] = (hitung[p.pose] ?? 0) + 1;
+    for (const [pose, jml] of Object.entries(hitung)) {
+      const kap = CAPACITY[pose];
+      if (kap && jml > kap && pose !== "idle") {
+        muat = false;
+        det = `${n} agent: ${pose} diisi ${jml}, kapasitas ${kap}`;
+      }
+    }
+  }
+  check("kapasitas tiap zona tidak dilampaui", muat, det);
+
+  // Ping pong harus 0 atau 2, tidak pernah 1.
+  let pp = true;
+  let ppDet = "";
+  for (let n = 1; n <= 14; n++) {
+    const map = resolvePoses(agen(n, 600), Date.now());
+    const jml = [...map.values()].filter((p) => p.pose === "pingpong").length;
+    if (jml === 1) {
+      pp = false;
+      ppDet = `${n} agent -> 1 orang main ping pong sendirian`;
+    }
+  }
+  check("ping pong selalu 0 atau 2 orang, tidak pernah 1", pp, ppDet);
+
+  // Agent yang baru nganggur tetap di pantry, dan juga tidak tumpuk.
+  {
+    const map = resolvePoses(agen(3, 10), Date.now());
+    const semuaPantry = [...map.values()].every((p) => p.pose === "idle");
+    const unik = new Set([...map.values()].map(titik));
+    check("baru nganggur (10 dtk) -> pantry semua", semuaPantry);
+    check("tiga orang di pantry berdiri terpisah", unik.size, 3);
+  }
+
+  // Pembagian harus stabil: urutan data dari server tidak boleh mengubahnya.
+  {
+    const a = agen(7, 600);
+    const m1 = resolvePoses(a, Date.now());
+    const m2 = resolvePoses([...a].reverse(), Date.now());
+    const sama = [...m1.entries()].every(
+      ([k, v]) => m2.get(k)?.pose === v.pose && m2.get(k)?.slot === v.slot,
+    );
+    check("urutan data dibalik -> pembagian tetap sama", sama);
+  }
 }
 
 /* ---- 8. tata letak masuk ruangan -------------------------------- */

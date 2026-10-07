@@ -214,30 +214,86 @@ export const ZONES = {
   bug: { x: BUGZONE.x, z: BUGZONE.z + 2.2, rotY: 0 },
 };
 
-/** Pose mana -> karakter ada di mana. */
-export function targetFor(pose: Pose, deskIndex: number) {
+/* ------------------------------------------------------------------ */
+/* Tiap zona berdiri punya beberapa titik, bukan satu.                  */
+/*                                                                      */
+/* Dulu semua agent dengan pose yang sama dikirim ke SATU koordinat, jadi */
+/* dua agent yang sama-sama mikir berdiri tindih-menindih di titik yang  */
+/* persis sama. Sekarang tiap zona punya daftar titik dan pembagiannya   */
+/* diatur resolvePoses() di store.ts.                                    */
+/* ------------------------------------------------------------------ */
+
+const spread = (
+  base: { x: number; z: number; rotY: number },
+  offsets: { dx: number; dz: number }[],
+) => offsets.map((o) => ({ x: base.x + o.dx, z: base.z + o.dz, rotY: base.rotY }));
+
+/** Berdiri berjajar di depan meja dapur. */
+export const KITCHEN_SPOTS = spread(ZONES.kitchen, [
+  { dx: -1.1, dz: 0 },
+  { dx: 0.3, dz: 0.25 },
+  { dx: 1.6, dz: 0 },
+]);
+
+/** Berjajar di depan whiteboard (menghadap -x, jadi sebarannya di sumbu z). */
+export const WHITEBOARD_SPOTS = spread(ZONES.whiteboard, [
+  { dx: 0, dz: -1.1 },
+  { dx: 0.35, dz: 0.2 },
+  { dx: 0, dz: 1.4 },
+]);
+
+/** Di atas matras zona bug. */
+export const BUG_SPOTS = spread(ZONES.bug, [
+  { dx: -1.0, dz: 0 },
+  { dx: 0.2, dz: 0.5 },
+  { dx: 1.3, dz: 0 },
+]);
+
+const pick = <T,>(arr: T[], i: number): T => arr[((i % arr.length) + arr.length) % arr.length];
+
+/** Berapa karakter yang muat di tiap pose. Angkanya dari perabot yang
+ * digambar — 3 bantalan sofa, 4 bean bag, 1 kursi baca, 3 nap pod, 2 ujung
+ * meja ping pong. Dipakai resolvePoses() buat membagi tempat tanpa tumpuk. */
+export const CAPACITY: Record<string, number> = {
+  gaming: SOFA_SEATS.length,
+  lounging: BEANBAG_SPOTS.length,
+  reading: 1,
+  sleeping: BED_X.length,
+  pingpong: 2,
+  idle: KITCHEN_SPOTS.length,
+  thinking: WHITEBOARD_SPOTS.length,
+  blocked: BUG_SPOTS.length,
+  error: BUG_SPOTS.length,
+};
+
+/** Pose mana -> karakter ada di mana.
+ *
+ * `slot` = nomor tempat ke berapa di dalam pose itu. Untuk pose kerja, slot
+ * adalah nomor mejanya. Untuk pose lain, slot dibagikan resolvePoses() supaya
+ * nggak ada dua karakter di titik yang sama. */
+export function targetFor(pose: Pose, slot: number) {
   switch (pose) {
     case "idle":
-      return ZONES.kitchen;
+      return pick(KITCHEN_SPOTS, slot);
     case "gaming":
-      return psSeat(deskIndex);
+      return psSeat(slot);
     case "sleeping":
-      return bedSpot(deskIndex);
+      return bedSpot(slot);
     case "lounging":
-      return beanbagSpot(deskIndex);
+      return beanbagSpot(slot);
     case "reading":
       return readingSpot();
     case "pingpong":
-      return pingpongSpot(deskIndex);
+      return pingpongSpot(slot);
     case "thinking":
-      return ZONES.whiteboard;
+      return pick(WHITEBOARD_SPOTS, slot);
     case "blocked":
     case "error":
-      return ZONES.bug;
+      return pick(BUG_SPOTS, slot);
     case "working":
     case "done":
     default:
-      return deskStandPos(deskIndex);
+      return deskStandPos(slot);
   }
 }
 
