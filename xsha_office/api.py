@@ -437,14 +437,27 @@ def get_state():
 	#
 	# Dikirim sebagai angka detik, bukan timestamp, supaya browser nggak perlu
 	# menebak timezone. None = belum pernah lapor.
+	# PENTING: pembandingnya HARUS waktu site, bukan NOW() milik MySQL.
+	#
+	# `last_seen` ditulis pakai now_datetime(), yang memakai timezone site
+	# (Asia/Jakarta). NOW() mengembalikan waktu server OS (UTC di sini). Dulu
+	# query ini memakai NOW() dan hasilnya negatif 7 jam, jadi "terakhir
+	# terlihat" jatuh di masa depan — ambang 6 detik dan 5 menit nggak pernah
+	# terlampaui dan karakternya macet di meja dengan status `kelar` selamanya.
+	#
+	# Nilai negatif tetap dijepit ke 0 sebagai jaring pengaman: kalau jam
+	# server bergeser, efek paling buruknya cuma "baru saja terlihat", bukan
+	# karakter yang membeku.
+	skrg = now_datetime()
 	idle = {
-		r[0]: int(r[1]) if r[1] is not None else None
+		r[0]: max(0, int(r[1])) if r[1] is not None else None
 		for r in frappe.db.sql(
 			"""
-			SELECT name, TIMESTAMPDIFF(SECOND, last_seen, NOW())
+			SELECT name, TIMESTAMPDIFF(SECOND, last_seen, %s)
 			FROM `tabAI Agent`
 			WHERE last_seen IS NOT NULL
-			"""
+			""",
+			(skrg,),
 		)
 	}
 

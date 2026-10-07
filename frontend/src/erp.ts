@@ -37,7 +37,13 @@ export async function loadInitial(): Promise<void> {
     // halaman dibuka — yang lagi tidur bakal bangun dan jalan ke pantry cuma
     // gara-gara di-refresh. null = belum pernah lapor sama sekali, jadi dikasih
     // 0 (epoch) supaya langsung terbaca sebagai nggak-ada-kabar-sejak-lama.
-    seen: a.idle_for == null ? 0 : Date.now() - Number(a.idle_for) * 1000,
+    // Dijepit ke >= 0. Server sudah menjepitnya juga, tapi angka negatif di
+    // sini akibatnya parah dan senyap: "terakhir terlihat" jatuh di masa depan,
+    // umur nganggur jadi negatif, dan SEMUA ambang waktu berhenti bekerja —
+    // karakternya membeku di pose terakhirnya selamanya. Sudah kejadian sekali
+    // gara-gara beda timezone antara penulis dan pembaca last_seen.
+    seen:
+      a.idle_for == null ? 0 : Date.now() - Math.max(0, Number(a.idle_for)) * 1000,
   }));
   setAgents(rows);
 }
