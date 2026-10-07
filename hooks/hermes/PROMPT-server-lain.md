@@ -108,11 +108,18 @@ pernah menulis ke stdout**. Agent tidak boleh berhenti bekerja gara-gara
 visualisasi, dan stdout hook bisa memengaruhi alur Hermes.
 
 **4. Uji jalurnya SEBELUM menyentuh `config.yaml` satu pun.** Jalankan sebagai
-user Hermes:
+user Hermes, dan pakai **nama agent yang sebenarnya** — yaitu nama profile
+pertama yang akan kamu pasang, bukan nama khusus untuk uji coba:
 
 ```
-echo '{"session_id":"tes","tool_name":"terminal","args":{"command":"echo halo"}}' | $HERMES_HOME/office-report.sh pre_tool_call hermes/GANTI_NAMA_SERVER-tes
+echo '{"session_id":"tes","tool_name":"terminal","args":{"command":"echo halo"}}' | $HERMES_HOME/office-report.sh pre_tool_call hermes/GANTI_NAMA_SERVER-<profil-pertama>
 ```
+
+Jangan memakai nama seperti `...-tes` atau `...-coba`. Token yang kamu pakai
+sengaja **tidak punya izin menghapus**, jadi agent uji coba akan tertinggal
+selamanya di office dan memakan satu meja. Memakai nama asli membuat uji ini
+tidak meninggalkan apa pun — laporannya cuma jadi laporan pertama dari agent
+yang memang akan ada.
 
 Tidak ada output = normal, skrip ini memang bisu. Verifikasi dengan membaca
 balik:
@@ -122,8 +129,8 @@ curl -s -H "Authorization: token GANTI_TOKEN" \
   "https://erp.x-sha.id/api/method/xsha_office.api.get_state"
 ```
 
-Harus muncul agent `hermes/GANTI_NAMA_SERVER-tes` dengan `state: working`.
-**Jangan lanjut kalau ini belum berhasil.** Kalau gagal, nyalakan mode log
+Harus muncul agent itu dengan `state: working`. **Jangan lanjut kalau ini
+belum berhasil.** Kalau gagal, nyalakan mode log
 (`touch $HERMES_HOME/.office-debug`), ulangi, lalu baca
 `$HERMES_HOME/office-report.log`.
 
