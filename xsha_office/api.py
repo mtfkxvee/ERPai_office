@@ -370,6 +370,42 @@ def hook(**payload):
 
 
 @frappe.whitelist()
+def set_name(agent: str, name: str | None = None, role: str | None = None):
+	"""Setel nama tampilan agent, tanpa menyentuh state aktivitasnya.
+
+	Dipisah dari report() karena ini bukan laporan kerja: memanggilnya nggak
+	boleh bikin agent kelihatan baru aktif. `last_seen` sengaja tidak diubah.
+
+	Agent yang belum terdaftar dibikin sekalian, jadi satu panggilan ini cukup
+	buat memperkenalkan diri:
+
+	    curl -X POST https://erp.x-sha.id/api/method/xsha_office.api.set_name \\
+	      -H "Authorization: token KEY:SECRET" \\
+	      -H "Content-Type: application/json" \\
+	      -d '{"agent":"hermes/vm-5-default","name":"SunTzu","role":"Strategi"}'
+
+	Kirim `name` kosong buat menghapus nama (office balik memakai id agent).
+	"""
+	agent = (agent or "").strip()
+	if not agent:
+		frappe.throw("Nama agent wajib diisi")
+
+	_ensure_agent(agent)
+
+	nilai = (name or "").strip()[:140] or None
+	frappe.db.set_value("AI Agent", agent, "display_name", nilai, update_modified=False)
+	if role:
+		frappe.db.set_value("AI Agent", agent, "role", str(role).strip()[:140], update_modified=False)
+	frappe.db.commit()
+
+	# Office yang sedang terbuka langsung ikut berubah tanpa perlu refresh.
+	frappe.publish_realtime(
+		"ai_office_rename", {"agent": agent, "display_name": nilai}, after_commit=True
+	)
+	return {"agent": agent, "display_name": nilai, "role": role}
+
+
+@frappe.whitelist()
 def get_state():
 	"""Snapshot semua agent buat load awal office."""
 	agents = frappe.get_all(

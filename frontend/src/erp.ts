@@ -1,4 +1,4 @@
-import { applyEvent, setAgents } from "./store";
+import { applyEvent, applyRename, setAgents } from "./store";
 import { AGENT_STATES, type Agent, type AgentState, type OfficeEvent } from "./types";
 
 declare global {
@@ -50,8 +50,15 @@ export function subscribe(): () => void {
     const e = coerce(raw);
     if (e) applyEvent(e);
   };
+  const onRename = (raw: any) => {
+    if (raw?.agent) applyRename(String(raw.agent), raw.display_name ?? null);
+  };
   window.frappe.realtime.on("ai_office_event", handler);
-  return () => window.frappe.realtime.off?.("ai_office_event", handler);
+  window.frappe.realtime.on("ai_office_rename", onRename);
+  return () => {
+    window.frappe.realtime.off?.("ai_office_event", handler);
+    window.frappe.realtime.off?.("ai_office_rename", onRename);
+  };
 }
 
 /* ------------------------------------------------------------------ */

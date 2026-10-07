@@ -35,6 +35,16 @@ export function setAgents(list: Agent[]) {
   emit();
 }
 
+/** Ganti nama tampilan tanpa menyentuh state. Dipicu endpoint set_name, jadi
+ * office yang sedang terbuka langsung ikut berubah tanpa refresh. */
+export function applyRename(agent: string, displayName: string | null) {
+  const prev = agents.get(agent);
+  if (!prev) return;
+  agents = new Map(agents);
+  agents.set(agent, { ...prev, display_name: displayName });
+  emit();
+}
+
 export function applyEvent(e: OfficeEvent) {
   const prev = agents.get(e.agent);
   const next: Agent = prev
