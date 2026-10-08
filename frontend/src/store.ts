@@ -102,6 +102,18 @@ const LEISURE_PLAN: { pose: Pose; slot: number; pair?: boolean }[] = [
   { pose: "lounging", slot: 3 },
 ];
 
+/** Tiap sekian lama, semua yang nganggur bertukar tempat.
+ *
+ * Tanpa ini tiap agent terpaku di satu tempat selamanya — pembagiannya memang
+ * sengaja deterministik supaya nggak ada yang tumpuk, dan efek sampingnya
+ * ruangan jadi kaku.
+ *
+ * Pergantiannya SEREMPAK, bukan sendiri-sendiri. Kalau tiap agent berputar di
+ * waktunya masing-masing, dua agent bisa mengincar tempat yang sama di sela
+ * pergantian dan tumpuk lagi. Serempak membuat pembagiannya tetap satu
+ * permutasi utuh di setiap saat. */
+const ROTATE_MS = 90 * 1000;
+
 export type Placement = { pose: Pose; slot: number };
 
 /** Tentukan pose DAN tempat duduk setiap agent sekaligus.
@@ -147,8 +159,16 @@ export function resolvePoses(agents: Agent[], now: number): Map<string, Placemen
   // ini murni biar ruangannya nggak kelihatan kayak kamar mayat. Informasi
   // yang sebenarnya (sudah berapa lama nggak ada kabar) ada di idleText().
   // Jangan baca "lagi main PS" sebagai "baru saja nganggur".
+  // Rencana tempat diputar menurut waktu, jadi giliran siapa dapat apa
+  // bergeser tiap ROTATE_MS. Memutar RENCANA-nya (bukan daftar agent) membuat
+  // pembagiannya tetap satu-satu: tiap entri rencana cuma dipakai sekali.
+  const putaran = Math.floor(now / ROTATE_MS);
+  const rencana = LEISURE_PLAN.map(
+    (_, k) => LEISURE_PLAN[(k + putaran) % LEISURE_PLAN.length],
+  );
+
   let i = 0;
-  for (const entry of LEISURE_PLAN) {
+  for (const entry of rencana) {
     if (i >= leisure.length) break;
     if (entry.pair) {
       // Butuh dua. Kalau cuma sisa satu, lewati — biar nggak main sendirian.

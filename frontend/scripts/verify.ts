@@ -532,12 +532,16 @@ console.log("\narah badan waktu duduk (menyandar, bukan membungkuk)");
 /* ---- 7c. pembagian tempat: tidak boleh ada yang tindih ----------- */
 console.log("\npembagian tempat (jangan ada karakter tumpuk)");
 {
-  const agen = (n: number, idleDetik: number) =>
+  // `acuan` wajib dioper, tidak boleh diam-diam pakai Date.now(): kalau
+  // `seen` dan `now` beda acuan waktu, umur nganggurnya jadi negatif dan
+  // SEMUA agent dianggap baru nganggur. Sempat bikin tes rotasi di bawah
+  // gagal palsu, dan itu kesalahan yang sama dengan bug timezone idle_for.
+  const agen = (n: number, idleDetik: number, acuan = Date.now()) =>
     Array.from({ length: n }, (_, i) => ({
       agent: `agent-${String(i).padStart(2, "0")}`,
       desk_index: i,
       state: "idle" as const,
-      seen: Date.now() - idleDetik * 1000,
+      seen: acuan - idleDetik * 1000,
       tool: null,
       detail: null,
       color: null,
@@ -596,6 +600,49 @@ console.log("\npembagian tempat (jangan ada karakter tumpuk)");
     const unik = new Set([...map.values()].map(titik));
     check("baru nganggur (10 dtk) -> pantry semua", semuaPantry);
     check("tiga orang di pantry berdiri terpisah", unik.size, 3);
+  }
+
+  /* --- tempatnya harus BERGANTI seiring waktu, tapi tetap tidak tumpuk --- */
+  {
+    const SIKLUS = 90 * 1000;
+    const t0 = Date.now();
+    const a = agen(6, 600, t0);
+
+    // Batas siklus dihitung dari epoch absolut, jadi dua waktu yang dipilih
+    // harus SENGAJA disejajarkan ke awal siklus. Tanpa itu, tes ini kadang
+    // lolos kadang gagal tergantung jam berapa dijalankan.
+    const awalSiklus = Math.floor(t0 / SIKLUS) * SIKLUS;
+    const p1 = resolvePoses(a, awalSiklus + 1000);
+    const p2 = resolvePoses(a, awalSiklus + SIKLUS - 1000);
+    const tetap = [...p1.entries()].every(
+      ([k, v]) => p2.get(k)?.pose === v.pose && p2.get(k)?.slot === v.slot,
+    );
+    check("di dalam satu siklus, tempatnya tidak loncat-loncat", tetap);
+
+    // Lintas siklus, tiap agent harus pernah dapat lebih dari satu tempat.
+    const variasi = new Map<string, Set<string>>();
+    for (let c = 0; c < 8; c++) {
+      const m = resolvePoses(a, awalSiklus + c * SIKLUS + 1000);
+      // tetap tidak boleh tumpuk di SETIAP siklus
+      const titikDipakai = [...m.values()].map(titik);
+      if (new Set(titikDipakai).size !== a.length) {
+        check(`siklus ${c}: tidak ada yang tumpuk`, false, "ada yang tumpuk");
+      }
+      for (const [nama, p] of m) {
+        if (!variasi.has(nama)) variasi.set(nama, new Set());
+        variasi.get(nama)!.add(`${p.pose}#${p.slot}`);
+      }
+    }
+    const palingSedikit = Math.min(...[...variasi.values()].map((s) => s.size));
+    check(
+      "lintas siklus, tiap agent berganti tempat",
+      palingSedikit > 1,
+      `ada agent yang cuma kebagian ${palingSedikit} tempat dalam 8 siklus`,
+    );
+    check(
+      "tidak ada yang tumpuk di sepanjang 8 siklus",
+      [...variasi.values()].length === a.length,
+    );
   }
 
   // Pembagian harus stabil: urutan data dari server tidak boleh mengubahnya.
