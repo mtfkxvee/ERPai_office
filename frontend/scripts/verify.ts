@@ -45,7 +45,7 @@ import {
 } from "../src/layout.ts";
 import { DESK_SEAT, facingFor, poseJoints, RIG } from "../src/poses.ts";
 import { LEISURE_POSES } from "../src/types.ts";
-import { blocked, move, solids } from "../src/collide.ts";
+import { blocked, freeSpotNear, move, solids } from "../src/collide.ts";
 import { resolvePoses } from "../src/store.ts";
 
 /* ---------------------------------------------------------------- */
@@ -692,6 +692,49 @@ console.log("\nmode jalan (POV karakter)");
     if (blocked(c.x, c.z)) terjebak = `kursi meja ${i}`;
   }
   check("titik duduk di meja tidak terjebak di dalam perabot", terjebak === "", terjebak);
+
+  /* --- yang sedang duduk/tidur HARUS bisa jalan waktu diambil alih ---
+   *
+   * Nap pod, sofa, dan bean bag itu kotak padat, dan karakter yang memakainya
+   * berada DI DALAM kotak itu. Sempat bikin mereka terkurung: setiap langkah
+   * ditolak karena titik awalnya sudah dianggap menabrak. */
+  for (const [pose, nama] of [
+    ["sleeping", "nap pod"],
+    ["gaming", "sofa"],
+    ["lounging", "bean bag"],
+    ["reading", "kursi baca"],
+  ] as const) {
+    const t0 = targetFor(pose, 0);
+
+    // 1. titik bebas terdekat harus benar-benar bebas
+    const bebas = freeSpotNear(t0.x, t0.z);
+    check(
+      `${nama}: dapat titik bebas waktu masuk POV`,
+      !blocked(bebas.x, bebas.z),
+      `dapat (${bebas.x.toFixed(2)}, ${bebas.z.toFixed(2)}) yang masih terblokir`,
+    );
+    check(
+      `${nama}: titik bebasnya tidak jauh-jauh`,
+      Math.hypot(bebas.x - t0.x, bebas.z - t0.z) < 3.5,
+      `pindah ${Math.hypot(bebas.x - t0.x, bebas.z - t0.z).toFixed(2)} unit`,
+    );
+
+    // 2. walau dipaksa mulai DARI DALAM perabot, harus tetap bisa bergerak
+    let x = t0.x;
+    let z = t0.z;
+    let total = 0;
+    for (let i = 0; i < 80; i++) {
+      const n = move(x, z, 0.06, 0.06);
+      total += Math.hypot(n.x - x, n.z - z);
+      x = n.x;
+      z = n.z;
+    }
+    check(
+      `${nama}: bisa jalan keluar walau mulai dari dalam perabot`,
+      total > 1.0,
+      `cuma bergerak ${total.toFixed(2)} unit dalam 80 langkah`,
+    );
+  }
 }
 
 /* ---- 8. tata letak masuk ruangan -------------------------------- */

@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { move, WALK_RADIUS } from "./collide.ts";
+import { freeSpotNear, move, WALK_RADIUS } from "./collide.ts";
 
 export const EYE_HEIGHT = 1.62;
 const SPEED = 3.2;
@@ -40,7 +40,11 @@ function emit() {
 }
 
 export function startPilot(agent: string, x: number, z: number, yaw: number) {
-  pilot = { agent, x, z, yaw, pitch: 0, moving: false };
+  // Karakter yang sedang duduk atau tidur berada DI DALAM kotak padat
+  // perabotnya. Dipindah dulu ke lantai kosong terdekat supaya dia langsung
+  // berdiri di tempat yang masuk akal, bukan mengambang di dalam kasur.
+  const bebas = freeSpotNear(x, z);
+  pilot = { agent, x: bebas.x, z: bebas.z, yaw, pitch: 0, moving: false };
   keys.clear();
   emit();
 }

@@ -70,9 +70,6 @@ export function Hud({
           <div style={{ color: "#c3c8d0", marginTop: 2 }}>
             Kamu yang menggerakkan, bukan agent-nya. Tidak ada yang dicatat.
           </div>
-          <div style={{ color: "#8d949e", marginTop: 6 }}>
-            WASD jalan · Shift lari · gerakkan tetikus buat menoleh
-          </div>
           <button
             onClick={onExit}
             style={{
