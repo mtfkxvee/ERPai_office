@@ -34,61 +34,19 @@ export function Hud({
   placements,
   demo,
   pilot,
-  onExit,
 }: {
   agents: Agent[];
   placements: Map<string, Placement>;
   demo: boolean;
   pilot?: { agent: string } | null;
-  onExit?: () => void;
 }) {
   const now = Date.now();
-  const namaDikemudikan = pilot
-    ? nameOf(agents.find((a) => a.agent === pilot.agent) ?? ({ agent: pilot.agent } as Agent))
-    : null;
-  if (pilot) {
-    return (
-      <>
-        <div
-          style={{
-            ...panel,
-            top: 12,
-            left: "50%",
-            transform: "translateX(-50%)",
-            textAlign: "center",
-            maxWidth: 460,
-            pointerEvents: "auto",
-            border: "1px solid rgba(255,214,102,.45)",
-          }}
-        >
-          <div style={{ fontWeight: 700, color: "#ffd166", letterSpacing: 0.3 }}>
-            MODE JALAN — {namaDikemudikan}
-          </div>
-          {/* Penegasan yang disengaja: office ini dibangun dengan aturan
-              "cuma tampilkan sinyal nyata". Karakter yang dikemudikan tidak
-              mewakili apa pun yang sedang dikerjakan agent-nya. */}
-          <div style={{ color: "#c3c8d0", marginTop: 2 }}>
-            Kamu yang menggerakkan, bukan agent-nya. Tidak ada yang dicatat.
-          </div>
-          <button
-            onClick={onExit}
-            style={{
-              marginTop: 8,
-              padding: "4px 14px",
-              borderRadius: 6,
-              border: "1px solid rgba(255,255,255,.25)",
-              background: "rgba(255,255,255,.08)",
-              color: "#e8eaed",
-              font: "inherit",
-              cursor: "pointer",
-            }}
-          >
-            Keluar (Esc)
-          </button>
-        </div>
-      </>
-    );
-  }
+  // Mode jalan: HUD disembunyikan seluruhnya. Pandangan orang pertama nggak
+  // butuh daftar agent, dan peringatan "ini kamu yang menggerakkan" ternyata
+  // tidak ada gunanya: mode ini sepenuhnya di sisi browser dan tidak mengirim
+  // apa pun, jadi satu-satunya orang yang bisa salah paham adalah yang sedang
+  // memegang papan ketik. Keluar lewat Esc atau lepas kunci tetikus.
+  if (pilot) return null;
 
   return (
     <>
@@ -125,26 +83,6 @@ export function Hud({
         })}
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: 12,
-          right: 12,
-          color: "rgba(255,255,255,.72)",
-          font: "11px/1.45 ui-monospace, monospace",
-          textShadow: "0 1px 2px rgba(0,0,0,.6)",
-          pointerEvents: "none",
-          textAlign: "right",
-        }}
-      >
-        drag = muter · scroll = zoom
-        <br />
-        meja = kerja · whiteboard = mikir · matras merah = ketahan
-        <br />
-        nganggur &gt;4 menit disebar ke tempat santai — lamanya ada di label
-        <br />
-        <span style={{ color: "#ffd166" }}>klik karakter buat masuk sudut pandangnya</span>
-      </div>
     </>
   );
 }

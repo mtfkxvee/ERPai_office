@@ -100,7 +100,7 @@ function App() {
         />
       </Canvas>
 
-      <Hud agents={agents} placements={placements} demo={demo} pilot={pilot} onExit={stopPilot} />
+      <Hud agents={agents} placements={placements} demo={demo} pilot={pilot} />
       {pilot && <Crosshair />}
 
       {error && (
