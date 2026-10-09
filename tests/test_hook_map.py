@@ -266,6 +266,61 @@ check(
     "cc/pos_next",
 )
 
+print("\nbentuk payload asli Hermes buat error & persetujuan")
+# Diambil dari titik pemanggilan hook DI DALAM image Hermes:
+#   error={"type": ..., "message": ...}, status_code=..., reason=...
+# `error` itu OBJEK, bukan teks. Dulu diperlakukan sebagai teks, jadi isinya
+# hilang dan dokter cuma melihat "API error" tanpa tahu errornya apa — 42 kali
+# tercatat di ALE, semuanya tanpa keterangan.
+check(
+    "api_request_error: pesan diambil dari objek error",
+    api._detail_from(
+        "api_request_error",
+        {"error": {"type": "overloaded_error", "message": "Overloaded"}, "status_code": 529},
+    ),
+    "529: Overloaded",
+)
+check(
+    "api_request_error: tanpa status_code",
+    api._detail_from("api_request_error", {"error": {"message": "connection reset"}}),
+    "connection reset",
+)
+check(
+    "api_request_error: jatuh ke type kalau message kosong",
+    api._detail_from("api_request_error", {"error": {"type": "rate_limit_error"}}),
+    "rate_limit_error",
+)
+check(
+    "api_request_error: jatuh ke reason",
+    api._detail_from("api_request_error", {"reason": "timeout menunggu provider"}),
+    "timeout menunggu provider",
+)
+check(
+    "api_request_error: error berupa teks biasa tetap kebaca",
+    api._detail_from("api_request_error", {"error": "boom"}),
+    "boom",
+)
+check(
+    "api_request_error: benar-benar kosong -> tetap ada keterangan",
+    api._detail_from("api_request_error", {}),
+    "API error",
+)
+check(
+    "persetujuan: pakai tool_name kalau ada",
+    api._detail_from("pre_approval_request", {"tool_name": "terminal"}),
+    "nunggu persetujuan: terminal",
+)
+check(
+    "persetujuan: coba kunci lain sebelum menyerah",
+    api._detail_from("pre_approval_request", {"command": "rm -rf /tmp/x"}),
+    "nunggu persetujuan: rm -rf /tmp/x",
+)
+check(
+    "persetujuan: tanpa petunjuk, jangan ngarang nama 'tool'",
+    api._detail_from("pre_approval_request", {}),
+    "nunggu persetujuan",
+)
+
 print("\npemotongan keterangan panjang")
 long = "x" * 500
 d = api._detail_from("PostToolUseFailure", {"tool_error": long})

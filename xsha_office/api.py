@@ -258,10 +258,34 @@ def _detail_from(event: str, payload: dict) -> str | None:
 
 	# --- khusus Hermes ---
 	if event == "pre_approval_request":
-		return f"nunggu persetujuan: {payload.get('tool_name') or 'tool'}"
+		# Nama tool-nya bisa datang dengan beberapa nama kunci tergantung dari
+		# mana persetujuan diminta. Dicoba berurutan daripada langsung menyerah
+		# ke kata "tool" yang nggak memberi tahu apa-apa.
+		for k in ("tool_name", "tool", "name", "command", "action"):
+			if payload.get(k):
+				return f"nunggu persetujuan: {str(payload[k])[:80]}"
+		return "nunggu persetujuan"
+
 	if event == "api_request_error":
-		err = payload.get("error") or payload.get("error_type") or ""
-		return str(err).strip().splitlines()[0] if err else "API error"
+		# Hermes mengirim `error` sebagai OBJEK, bukan teks:
+		#     error={"type": ..., "message": ...}
+		# plus status_code, reason, retryable, retry_count di tingkat atas.
+		# Dulu di sini diperlakukan sebagai string dan selalu jatuh ke teks
+		# cadangan "API error" — sinyalnya ada tapi isinya hilang, jadi
+		# dokternya tahu ada masalah tapi nggak bisa bilang masalahnya apa.
+		err = _as_dict(payload.get("error"))
+		pesan = (
+			err.get("message")
+			or err.get("type")
+			or payload.get("reason")
+			or payload.get("error_type")
+			or (payload.get("error") if isinstance(payload.get("error"), str) else None)
+		)
+		kode = payload.get("status_code")
+		if pesan:
+			teks = str(pesan).strip().splitlines()[0]
+			return f"{kode}: {teks}" if kode else teks
+		return f"API error {kode}" if kode else "API error"
 	if event == "on_session_end":
 		if payload.get("failed"):
 			return "sesi gagal"
